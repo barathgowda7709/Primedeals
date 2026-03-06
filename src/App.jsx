@@ -36,6 +36,7 @@ const Spinner = () => (
 
 const Navbar = ({ cartCount, onNavigate, searchQuery, onSearch, user, onLogout }) => {
   const [query, setQuery] = useState(searchQuery || "");
+  const [showDropdown, setShowDropdown] = useState(false);
   const handleSearch = (e) => {
     e.preventDefault();
     onSearch(query);
@@ -66,12 +67,47 @@ const Navbar = ({ cartCount, onNavigate, searchQuery, onSearch, user, onLogout }
             style={{ flex: 1, border: "none", padding: "0 12px", fontSize: "14px", outline: "none" }} />
           <button type="submit" style={{ background: "#ff9900", border: "none", padding: "0 16px", cursor: "pointer", fontSize: "18px" }}>🔍</button>
         </form>
-        <div style={{ color: "white", fontSize: "12px", cursor: "pointer", padding: "6px 8px", borderRadius: "3px", border: "1px solid transparent", minWidth: "110px" }}
-          onClick={() => user ? onLogout() : onNavigate("login")}
-          onMouseEnter={e => e.currentTarget.style.borderColor = "white"}
-          onMouseLeave={e => e.currentTarget.style.borderColor = "transparent"}>
-          <div style={{ color: "#ccc" }}>Hello, {user ? user.name : "sign in"}</div>
-          <div style={{ fontWeight: 700, fontSize: "13px" }}>Account & Lists</div>
+        <div style={{ position: "relative" }}
+          onMouseEnter={() => setShowDropdown(true)}
+          onMouseLeave={() => setShowDropdown(false)}>
+          <div style={{ color: "white", fontSize: "12px", cursor: "pointer", padding: "6px 8px", borderRadius: "3px", border: "1px solid transparent", minWidth: "110px" }}
+            onClick={() => !user && onNavigate("login")}
+            onMouseEnter={e => e.currentTarget.style.borderColor = "white"}
+            onMouseLeave={e => e.currentTarget.style.borderColor = "transparent"}>
+            <div style={{ color: "#ccc" }}>Hello, {user ? user.name : "sign in"}</div>
+            <div style={{ fontWeight: 700, fontSize: "13px" }}>Account & Lists ▾</div>
+          </div>
+          {user && showDropdown && (
+            <div style={{ position: "absolute", top: "100%", right: 0, background: "white", borderRadius: "4px", boxShadow: "0 4px 20px rgba(0,0,0,0.25)", minWidth: "220px", zIndex: 9999, padding: "8px 0", border: "1px solid #e3e6e6" }}>
+              <div style={{ padding: "8px 16px 6px", borderBottom: "1px solid #e3e6e6", marginBottom: "4px" }}>
+                <div style={{ fontSize: "12px", color: "#555" }}>Signed in as</div>
+                <div style={{ fontSize: "13px", fontWeight: 700, color: "#131921" }}>{user.name}</div>
+              </div>
+              {[
+                { label: "Your Account", icon: "👤", page: "account" },
+                { label: "Your Orders", icon: "📦", page: "orders" },
+                { label: "Returns", icon: "↩️", page: "orders" },
+                { label: "Your Seller Account", icon: "🏪", page: null },
+                { label: "Membership & Subscriptions", icon: "⭐", page: null },
+              ].map(item => (
+                <div key={item.label}
+                  onClick={() => { if (item.page) { onNavigate(item.page); setShowDropdown(false); } }}
+                  style={{ padding: "9px 16px", fontSize: "13px", color: "#131921", cursor: "pointer", display: "flex", alignItems: "center", gap: "10px" }}
+                  onMouseEnter={e => e.currentTarget.style.background = "#f0f2f2"}
+                  onMouseLeave={e => e.currentTarget.style.background = "white"}>
+                  <span>{item.icon}</span> {item.label}
+                </div>
+              ))}
+              <div style={{ borderTop: "1px solid #e3e6e6", marginTop: "4px" }}>
+                <div onClick={() => { onLogout(); setShowDropdown(false); }}
+                  style={{ padding: "9px 16px", fontSize: "13px", color: "#c7511f", cursor: "pointer", display: "flex", alignItems: "center", gap: "10px", fontWeight: 600 }}
+                  onMouseEnter={e => e.currentTarget.style.background = "#fff5ee"}
+                  onMouseLeave={e => e.currentTarget.style.background = "white"}>
+                  <span>🚪</span> Sign Out
+                </div>
+              </div>
+            </div>
+          )}
         </div>
         <div onClick={() => onNavigate("orders")} style={{ color: "white", fontSize: "12px", cursor: "pointer", padding: "6px 8px", borderRadius: "3px", border: "1px solid transparent" }}
           onMouseEnter={e => e.currentTarget.style.borderColor = "white"}
