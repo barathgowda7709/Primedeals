@@ -23,21 +23,22 @@ export default function App() {
     const token = localStorage.getItem("token");
     const savedUser = localStorage.getItem("user");
     if (token && savedUser) {
-      const parsedUser = JSON.parse(savedUser);
-      setUser(parsedUser);
-      fetchCart(); // Load cart from backend on page refresh
+      setUser(JSON.parse(savedUser));
+      fetchCart();
     }
   }, []);
 
-  // ─── Fetch cart from backend ────────────────────────────────────────────────
+  // ─── Fetch cart from backend ─────────────────────────────────────────────
   const fetchCart = async () => {
     try {
       const res = await api.getCart();
-      const backendCart = res.data.map(item => ({
+      // Map backend CartResponse fields to frontend cart format
+      const backendCart = (res.data.items || []).map(item => ({
         id: item.productId,
+        cartItemId: item.cartItemId,
         name: item.productName,
         price: item.price,
-        category: item.category,
+        imageUrl: item.imageUrl,
         qty: item.quantity,
       }));
       setCart(backendCart);
@@ -58,7 +59,7 @@ export default function App() {
     setTimeout(() => setToast(null), 2500);
   };
 
-  // ─── Add to cart (local + backend) ─────────────────────────────────────────
+  // ─── Add to cart (local + backend) ───────────────────────────────────────
   const addToCart = async (product) => {
     // Update local state immediately for fast UI
     setCart(prev => {
@@ -78,7 +79,7 @@ export default function App() {
     }
   };
 
-  // ─── Remove from cart (local + backend) ────────────────────────────────────
+  // ─── Remove from cart (local + backend) ──────────────────────────────────
   const removeFromCart = async (id) => {
     setCart(prev => prev.filter(i => i.id !== id));
     if (localStorage.getItem("token")) {
@@ -90,7 +91,9 @@ export default function App() {
     }
   };
 
-  const updateQty = (id, qty) => setCart(prev => prev.map(i => i.id === id ? { ...i, qty } : i));
+  const updateQty = (id, qty) => setCart(prev =>
+    prev.map(i => i.id === id ? { ...i, qty } : i)
+  );
 
   const productClick = (product) => {
     setSelectedProduct(product);
@@ -103,7 +106,10 @@ export default function App() {
     fetchCart(); // Load cart from backend after login
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    if (localStorage.getItem("token")) {
+      try { await api.clearCart(); } catch (err) {}
+    }
     setUser(null);
     setCart([]);
     localStorage.removeItem("token");
