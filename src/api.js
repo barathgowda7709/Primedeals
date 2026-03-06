@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const API = axios.create({
-  baseURL: "https://prime-deals-backend-production-07f8.up.railway.app/api",
+  baseURL: "https://prime-deals-backend-production.up.railway.app/api",
 });
 
 // Automatically attach JWT token to every request
