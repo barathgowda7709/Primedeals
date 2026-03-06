@@ -1,4 +1,5 @@
-// ─── APP ──────────────────────────────────────────────────────────────────────
+import { useState, useEffect } from "react";
+import * as api from "./api"; // ─── APP ──────────────────────────────────────────────────────────────────────
 export default function App() {
   const [page, setPage] = useState("home");
   const [cart, setCart] = useState([]);
