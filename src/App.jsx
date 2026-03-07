@@ -412,7 +412,7 @@ const CartPage = ({ cart, onRemove, onUpdateQty, onNavigate }) => {
                       {[1, 2, 3, 4, 5].map(n => <option key={n} value={n}>{n}</option>)}
                     </select>
                     <span style={{ color: "#666" }}>|</span>
-                    <span onClick={() => onRemove(item.id)} style={{ color: "#c45500", fontSize: "13px", cursor: "pointer" }}>Delete</span>
+                    <span onClick={() => onRemove(item.id, item.cartItemId)} style={{ color: "#c45500", fontSize: "13px", cursor: "pointer" }}>Delete</span>
                   </div>
                 </div>
                 <div style={{ fontWeight: 700, fontSize: "18px" }}>₹{(item.price * item.qty).toLocaleString()}</div>
@@ -755,11 +755,11 @@ export default function App() {
     }
   };
 
-  const removeFromCart = async (id) => {
+  const removeFromCart = async (id,cartItemId) => {
     setCart(prev => prev.filter(i => i.id !== id));
     if (localStorage.getItem("token")) {
       try {
-        await api.removeFromCart(id);
+        await api.removeFromCart(cartItemId);
       } catch (err) {
         console.error("Remove cart sync failed:", err);
       }
