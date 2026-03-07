@@ -516,114 +516,158 @@ const LoginPage = ({ onLogin, onNavigate }) => {
     </div>
   );
 };
-
-const CheckoutPage = ({ cart, user, onNavigate, onPlaceOrder }) => {
-  const [step, setStep] = useState(1);
-  const [address, setAddress] = useState({ name: user?.name || "", street: "", city: "", state: "", pin: "", phone: "" });
-  const [payment, setPayment] = useState("cod");
-  const [loading, setLoading] = useState(false);
+const CheckoutPage = ({ onNavigate, cartItems, user }) => {
+  const [addresses, setAddresses] = useState([]);
+  const [selectedAddress, setSelectedAddress] = useState(null);
+  const [walletBalance, setWalletBalance] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [placing, setPlacing] = useState(false);
   const [error, setError] = useState("");
-  const total = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
-  const handleOrder = async () => {
-    setLoading(true);
+
+  const total = cartItems.reduce((sum, item) =>
+    sum + item.product.price * item.quantity, 0);
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    Promise.all([
+      fetch("https://prime-deals-backend-production.up.railway.app/api/addresses",
+        { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
+      fetch("https://prime-deals-backend-production.up.railway.app/api/checkout/wallet",
+        { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json())
+    ]).then(([addrs, wallet]) => {
+      setAddresses(addrs);
+      setSelectedAddress(addrs.find(a => a.isDefault)?.id || addrs[0]?.id);
+      setWalletBalance(wallet.balance);
+      setLoading(false);
+    });
+  }, []);
+
+  const placeOrder = async () => {
+    if (!selectedAddress) return setError("Please select a delivery address");
+    if (walletBalance < total) return setError("Insufficient wallet balance");
+    setPlacing(true);
     setError("");
     try {
-      const shippingAddress = `${address.name}, ${address.street}, ${address.city}, ${address.state} - ${address.pin}`;
-      await onPlaceOrder(shippingAddress);
-      setStep(4);
-    } catch (err) {
-      setError("Failed to place order. Please try again.");
+      const token = localStorage.getItem("token");
+      const res = await fetch(
+        "https://prime-deals-backend-production.up.railway.app/api/checkout",
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ addressId: selectedAddress })
+        }
+      );
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Checkout failed");
+      onNavigate("order-success", data);
+    } catch (e) {
+      setError(e.message);
     } finally {
-      setLoading(false);
+      setPlacing(false);
     }
   };
-  if (step === 4) return (
-    <div style={{ background: "#eaeded", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div style={{ background: "white", borderRadius: "8px", padding: "60px", textAlign: "center", maxWidth: "480px" }}>
-        <div style={{ fontSize: "64px", marginBottom: "16px" }}>🎉</div>
-        <h2 style={{ color: "#007b23", fontFamily: "Georgia, serif", margin: "0 0 12px" }}>Order Placed!</h2>
-        <p style={{ color: "#555", marginBottom: "8px" }}>Thank you! Your order has been confirmed.</p>
-        <p style={{ color: "#007185", fontSize: "13px", marginBottom: "24px" }}>Estimated delivery: 2-5 business days</p>
-        <button onClick={() => onNavigate("orders")}
-          style={{ background: "#ff9900", border: "none", padding: "12px 28px", borderRadius: "24px", fontSize: "15px", fontWeight: 700, cursor: "pointer", marginRight: "12px" }}>
-          View Orders
-        </button>
-        <button onClick={() => onNavigate("home")}
-          style={{ background: "white", border: "1px solid #ddd", padding: "12px 28px", borderRadius: "24px", fontSize: "15px", cursor: "pointer" }}>
-          Continue Shopping
-        </button>
-      </div>
-    </div>
-  );
+
+  if (loading) return <Spinner />;
+
   return (
-    <div style={{ background: "#eaeded", minHeight: "100vh" }}>
-      <div style={{ maxWidth: "900px", margin: "0 auto", padding: "20px 16px" }}>
-        <div style={{ display: "flex", marginBottom: "20px", background: "white", borderRadius: "8px", overflow: "hidden" }}>
-          {["Address", "Payment", "Review"].map((s, i) => (
-            <div key={s} style={{ flex: 1, padding: "12px", textAlign: "center", background: step === i + 1 ? "#131921" : step > i + 1 ? "#232f3e" : "white", color: step >= i + 1 ? "white" : "#888", fontSize: "14px", fontWeight: step === i + 1 ? 700 : 400 }}>
-              {step > i + 1 ? "✓ " : ""}{i + 1}. {s}
-            </div>
-          ))}
+    <div style={{ maxWidth: "1100px", margin: "0 auto", padding: "24px 16px" }}>
+      <h2 style={{ fontSize: "24px", fontWeight: 700, marginBottom: "20px" }}>Checkout</h2>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 380px", gap: "20px" }}>
+
+        {/* Left side */}
+        <div>
+          {/* Address Selection */}
+          <div style={{ background: "white", border: "1px solid #ddd", borderRadius: "8px", padding: "20px", marginBottom: "16px" }}>
+            <h3 style={{ fontSize: "18px", fontWeight: 700, marginBottom: "16px" }}>📍 Delivery Address</h3>
+            {addresses.length === 0 ? (
+              <p style={{ color: "#888" }}>No addresses saved. Please add an address first.</p>
+            ) : (
+              addresses.map(addr => (
+                <div key={addr.id} onClick={() => setSelectedAddress(addr.id)}
+                  style={{ border: `2px solid ${selectedAddress === addr.id ? "#ff9900" : "#ddd"}`,
+                    borderRadius: "6px", padding: "12px", marginBottom: "10px", cursor: "pointer",
+                    background: selectedAddress === addr.id ? "#fffbf0" : "white" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                    <input type="radio" readOnly checked={selectedAddress === addr.id} />
+                    <div>
+                      <div style={{ fontWeight: 700 }}>{addr.fullName} {addr.isDefault && <span style={{ background: "#e6f4ea", color: "#2e7d32", fontSize: "11px", padding: "2px 6px", borderRadius: "10px", marginLeft: "6px" }}>Default</span>}</div>
+                      <div style={{ color: "#555", fontSize: "14px" }}>{addr.street}, {addr.city}, {addr.state} - {addr.pinCode}</div>
+                      <div style={{ color: "#555", fontSize: "14px" }}>📞 {addr.phone}</div>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Order Items */}
+          <div style={{ background: "white", border: "1px solid #ddd", borderRadius: "8px", padding: "20px" }}>
+            <h3 style={{ fontSize: "18px", fontWeight: 700, marginBottom: "16px" }}>🛒 Order Items ({cartItems.length})</h3>
+            {cartItems.map((item, i) => (
+              <div key={i} style={{ display: "flex", gap: "12px", paddingBottom: "12px",
+                borderBottom: i < cartItems.length - 1 ? "1px solid #eee" : "none", marginBottom: "12px" }}>
+                <img src={item.product.imageUrl} alt={item.product.name}
+                  style={{ width: "64px", height: "64px", objectFit: "cover", borderRadius: "4px" }} />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 600 }}>{item.product.name}</div>
+                  <div style={{ color: "#888", fontSize: "13px" }}>Qty: {item.quantity}</div>
+                </div>
+                <div style={{ fontWeight: 700 }}>₹{(item.product.price * item.quantity).toLocaleString()}</div>
+              </div>
+            ))}
+          </div>
         </div>
-        {step === 1 && (
-          <div style={{ background: "white", borderRadius: "8px", padding: "24px" }}>
-            <h2 style={{ margin: "0 0 20px", fontFamily: "Georgia, serif" }}>Delivery Address</h2>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-              {[["Full name", "name"], ["Street address", "street"], ["City", "city"], ["State", "state"], ["PIN code", "pin"], ["Phone number", "phone"]].map(([label, key]) => (
-                <div key={key} style={{ gridColumn: key === "street" ? "1/-1" : "auto" }}>
-                  <label style={{ display: "block", fontSize: "13px", fontWeight: 700, marginBottom: "4px" }}>{label}</label>
-                  <input value={address[key]} onChange={e => setAddress({ ...address, [key]: e.target.value })}
-                    style={{ width: "100%", padding: "8px", border: "1px solid #aaa", borderRadius: "4px", fontSize: "14px", boxSizing: "border-box" }} />
+
+        {/* Right side — Order Summary */}
+        <div>
+          <div style={{ background: "white", border: "1px solid #ddd", borderRadius: "8px", padding: "20px", position: "sticky", top: "80px" }}>
+            <h3 style={{ fontSize: "18px", fontWeight: 700, marginBottom: "16px" }}>💳 Order Summary</h3>
+
+            <div style={{ borderBottom: "1px solid #eee", paddingBottom: "12px", marginBottom: "12px" }}>
+              {cartItems.map((item, i) => (
+                <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: "14px", marginBottom: "6px" }}>
+                  <span>{item.product.name} × {item.quantity}</span>
+                  <span>₹{(item.product.price * item.quantity).toLocaleString()}</span>
                 </div>
               ))}
             </div>
-            <button onClick={() => setStep(2)}
-              style={{ marginTop: "20px", background: "#ff9900", color: "#131921", border: "none", padding: "12px 28px", borderRadius: "24px", fontSize: "15px", fontWeight: 700, cursor: "pointer" }}>
-              Use this address
-            </button>
-          </div>
-        )}
-        {step === 2 && (
-          <div style={{ background: "white", borderRadius: "8px", padding: "24px" }}>
-            <h2 style={{ margin: "0 0 20px", fontFamily: "Georgia, serif" }}>Payment Method</h2>
-            {[["cod", "💵", "Cash on Delivery"], ["card", "💳", "Credit / Debit Card"], ["upi", "📱", "UPI Payment"], ["netbanking", "🏦", "Net Banking"]].map(([val, icon, label]) => (
-              <label key={val} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "14px", border: `2px solid ${payment === val ? "#ff9900" : "#e3e6e6"}`, borderRadius: "8px", marginBottom: "10px", cursor: "pointer", background: payment === val ? "#fffbf0" : "white" }}>
-                <input type="radio" name="payment" value={val} checked={payment === val} onChange={() => setPayment(val)} />
-                <span style={{ fontSize: "22px" }}>{icon}</span>
-                <span style={{ fontSize: "15px", fontWeight: payment === val ? 700 : 400 }}>{label}</span>
-              </label>
-            ))}
-            <button onClick={() => setStep(3)}
-              style={{ marginTop: "8px", background: "#ff9900", color: "#131921", border: "none", padding: "12px 28px", borderRadius: "24px", fontSize: "15px", fontWeight: 700, cursor: "pointer" }}>
-              Use this payment method
-            </button>
-          </div>
-        )}
-        {step === 3 && (
-          <div style={{ background: "white", borderRadius: "8px", padding: "24px" }}>
-            <h2 style={{ margin: "0 0 20px", fontFamily: "Georgia, serif" }}>Review your order</h2>
-            {error && <div style={{ background: "#fff5f5", border: "1px solid #f5c6c6", borderRadius: "4px", padding: "10px", color: "#c0392b", marginBottom: "16px" }}>{error}</div>}
-            {cart.map(item => (
-              <div key={item.id} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid #e3e6e6" }}>
-                <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-                  <span style={{ fontSize: "28px" }}>{getIcon(item.category)}</span>
-                  <div>
-                    <div style={{ fontSize: "14px", fontWeight: 600 }}>{item.name}</div>
-                    <div style={{ fontSize: "12px", color: "#888" }}>Qty: {item.qty}</div>
-                  </div>
-                </div>
-                <div style={{ fontWeight: 700 }}>₹{(item.price * item.qty).toLocaleString()}</div>
-              </div>
-            ))}
-            <div style={{ textAlign: "right", padding: "16px 0", fontSize: "18px" }}>
-              Order Total: <span style={{ fontWeight: 700 }}>₹{total.toLocaleString()}</span>
+
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "14px", marginBottom: "6px" }}>
+              <span>Subtotal</span><span>₹{total.toLocaleString()}</span>
             </div>
-            <button onClick={handleOrder} disabled={loading}
-              style={{ width: "100%", background: loading ? "#ccc" : "#ff9900", color: "#131921", border: "none", padding: "14px", borderRadius: "24px", fontSize: "16px", fontWeight: 700, cursor: loading ? "not-allowed" : "pointer" }}>
-              {loading ? "Placing order..." : "Place your order"}
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "14px", marginBottom: "6px", color: "green" }}>
+              <span>Shipping</span><span>FREE</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 700, fontSize: "18px",
+              borderTop: "1px solid #eee", paddingTop: "12px", marginTop: "8px", marginBottom: "16px" }}>
+              <span>Total</span><span>₹{total.toLocaleString()}</span>
+            </div>
+
+            {/* Wallet Balance */}
+            <div style={{ background: walletBalance >= total ? "#e6f4ea" : "#fdecea",
+              border: `1px solid ${walletBalance >= total ? "#a5d6a7" : "#f5c6cb"}`,
+              borderRadius: "6px", padding: "12px", marginBottom: "16px" }}>
+              <div style={{ fontSize: "13px", color: "#555" }}>💰 Wallet Balance</div>
+              <div style={{ fontWeight: 700, fontSize: "18px", color: walletBalance >= total ? "#2e7d32" : "#c62828" }}>
+                ₹{Number(walletBalance).toLocaleString()}
+              </div>
+              {walletBalance < total && (
+                <div style={{ color: "#c62828", fontSize: "12px", marginTop: "4px" }}>
+                  ⚠️ Insufficient balance (need ₹{(total - walletBalance).toLocaleString()} more)
+                </div>
+              )}
+            </div>
+
+            {error && <div style={{ color: "red", fontSize: "13px", marginBottom: "12px" }}>⚠️ {error}</div>}
+
+            <button onClick={placeOrder} disabled={placing || walletBalance < total || addresses.length === 0}
+              style={{ width: "100%", padding: "14px", background: placing || walletBalance < total ? "#ccc" : "#ff9900",
+                border: "none", borderRadius: "6px", fontWeight: 700, fontSize: "16px",
+                cursor: placing || walletBalance < total ? "not-allowed" : "pointer" }}>
+              {placing ? "Placing Order..." : `Pay ₹${total.toLocaleString()} from Wallet`}
             </button>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
