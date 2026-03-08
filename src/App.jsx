@@ -1244,6 +1244,31 @@ export default function App() {
     if (token && stored) { try { setUser(JSON.parse(stored)); } catch {} }
   }, []);
 
+  // ── Browser back / forward support ───────────────────────────────────────
+  useEffect(() => {
+    // Stamp the very first entry so the first "back" press has state to restore
+    history.replaceState(
+      { page: "home", navParam: null, filterCategory: null, selectedProduct: null, searchQuery: "" },
+      ""
+    );
+
+    const handlePop = e => {
+      if (!e.state) return;
+      const { page: pg, navParam: np, filterCategory: fc, selectedProduct: sp, searchQuery: sq } = e.state;
+      // Restore all derived state from the saved snapshot
+      setPage(pg);
+      setFilterCategory(fc ?? null);
+      setNavParam(np ?? null);
+      setSearchQuery(sq ?? "");
+      if (!sq || pg === "home") setSearchResults(null);
+      if (sp) setSelectedProduct(sp);
+      window.scrollTo(0, 0);
+    };
+
+    window.addEventListener("popstate", handlePop);
+    return () => window.removeEventListener("popstate", handlePop);
+  }, []); // run once on mount
+
   const handleLogin = data => {
     localStorage.setItem("token", data.token);
     localStorage.setItem("user", JSON.stringify({ name: data.name, email: data.email }));
@@ -1296,16 +1321,34 @@ export default function App() {
 
   const showToast = msg => { setToast(msg); setTimeout(() => setToast(null), 2500); };
 
-  const navigate = (target, extra) => {
-    if (target === "products" && extra && CATEGORIES.some(c => c.name === extra)) setFilterCategory(extra);
-    else if (target !== "products") setFilterCategory(null);
-    if (target === "account") setNavParam(extra || null);
-    if (target === "home") { setSearchQuery(""); setSearchResults(null); }
+  // ── History-aware navigate ────────────────────────────────────────────────
+  const navigate = (target, extra, _product = null) => {
+    // Compute new derived state so we can store it in history
+    let newFilterCat = filterCategory;
+    if (target === "products" && extra && CATEGORIES.some(c => c.name === extra)) {
+      newFilterCat = extra; setFilterCategory(extra);
+    } else if (target !== "products") {
+      newFilterCat = null; setFilterCategory(null);
+    }
+
+    let newNavParam = navParam;
+    if (target === "account") { newNavParam = extra || null; setNavParam(newNavParam); }
+
+    let newSearchQuery = searchQuery;
+    if (target === "home") { newSearchQuery = ""; setSearchQuery(""); setSearchResults(null); }
+
+    // Product pages need the product object stored so back restores the right product
+    const sp = target === "product" ? (_product ?? selectedProduct) : null;
+
+    history.pushState(
+      { page: target, navParam: newNavParam, filterCategory: newFilterCat, selectedProduct: sp, searchQuery: newSearchQuery },
+      ""
+    );
     setPage(target);
     window.scrollTo(0, 0);
   };
 
-  const productClick = product => { setSelectedProduct(product); navigate("product"); };
+  const productClick = product => { setSelectedProduct(product); navigate("product", null, product); };
 
   const requireAuth = () => { if (!user) { navigate("login"); throw new Error("Not logged in"); } };
 
