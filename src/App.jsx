@@ -1,6 +1,16 @@
 import { useState, useEffect, useRef } from "react";
 import * as api from "./api";
 
+const useMobile = () => {
+  const [m, setM] = useState(window.innerWidth < 768);
+  useEffect(() => {
+    const h = () => setM(window.innerWidth < 768);
+    window.addEventListener("resize", h);
+    return () => window.removeEventListener("resize", h);
+  }, []);
+  return m;
+};
+
 // ── Theme ────────────────────────────────────────────────────────────────────
 const T = {
   bg: "#0A0A0A", surface: "#111111", surface2: "#181818", surface3: "#1F1F1F",
@@ -63,6 +73,8 @@ const Navbar = ({ cartCount, onNavigate, searchQuery, onSearch, user, onLogout, 
   const [showAcct, setShowAcct]         = useState(false);
   const [showSugg, setShowSugg]         = useState(false);
   const [scrolled, setScrolled]         = useState(false);
+  const [menuOpen, setMenuOpen]         = useState(false);
+  const mobile                          = useMobile();
 
   useEffect(() => { setQuery(searchQuery || ""); }, [searchQuery]);
   useEffect(() => {
@@ -94,8 +106,9 @@ const Navbar = ({ cartCount, onNavigate, searchQuery, onSearch, user, onLogout, 
     backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)",
     borderBottom: `1px solid ${scrolled ? T.border : "transparent"}`,
     transition: "all 0.3s ease",
-    padding: "0 40px", height: "68px",
-    display: "flex", alignItems: "center", gap: "32px",
+    padding: mobile ? "0 16px" : "0 40px",
+    height: mobile ? "56px" : "68px",
+    display: "flex", alignItems: "center", gap: mobile ? "12px" : "32px",
   };
 
   return (
@@ -106,18 +119,21 @@ const Navbar = ({ cartCount, onNavigate, searchQuery, onSearch, user, onLogout, 
         <span style={{ fontFamily: SERIF, fontSize: "22px", fontWeight: 400, fontStyle: "italic", color: T.gold }}>Deals</span>
       </div>
 
-      {/* Nav links */}
-      <nav style={{ display: "flex", gap: "28px", flex: 1 }}>
+      {/* Nav links - desktop only */}
+      {!mobile && <nav style={{ display: "flex", gap: "28px", flex: 1 }}>
         {[["New Arrivals","products"],["Collections","products"],["Boutique","products"]].map(([label, pg]) => (
           <span key={label} onClick={() => onNavigate(pg)}
             style={{ color: T.textMuted, fontSize: "13px", letterSpacing: "0.5px", cursor: "pointer", transition: "color 0.2s" }}
             onMouseEnter={e => e.currentTarget.style.color = T.gold}
             onMouseLeave={e => e.currentTarget.style.color = T.textMuted}>{label}</span>
         ))}
-      </nav>
+      </nav>}
 
-      {/* Search */}
-      <form onSubmit={handleSearch} style={{ position: "relative", width: "280px" }}>
+      {/* Spacer on mobile */}
+      {mobile && <div style={{ flex: 1 }} />}
+
+      {/* Search - desktop only */}
+      <form onSubmit={handleSearch} style={{ position: "relative", width: mobile ? "0" : "280px", overflow: mobile ? "hidden" : "visible", opacity: mobile ? 0 : 1 }}>
         <div style={{ display: "flex", alignItems: "center", background: T.surface2, border: `1px solid ${T.borderFaint}`, borderRadius: "2px", overflow: "visible" }}>
           <input value={query}
             onChange={e => { setQuery(e.target.value); setShowSugg(true); }}
@@ -142,7 +158,9 @@ const Navbar = ({ cartCount, onNavigate, searchQuery, onSearch, user, onLogout, 
       </form>
 
       {/* Right icons */}
-      <div style={{ display: "flex", alignItems: "center", gap: "24px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: mobile ? "16px" : "24px" }}>
+        {/* Mobile search icon */}
+        {mobile && <span onClick={() => { const q = prompt("Search products..."); if (q) { onSearch(q); onNavigate("products"); } }} style={{ fontSize: "18px", color: T.textMuted, cursor: "pointer" }}>🔍</span>}
         {/* Cart */}
         <div onClick={() => onNavigate("cart")} style={{ position: "relative", cursor: "pointer" }}>
           <span style={{ fontSize: "20px", color: T.textMuted }}>🛒</span>
@@ -209,10 +227,10 @@ const Navbar = ({ cartCount, onNavigate, searchQuery, onSearch, user, onLogout, 
           )}
         </div>
 
-        {/* Customer service */}
-        <span onClick={() => onNavigate("account", "contact")} style={{ fontSize: "12px", color: T.textMuted, cursor: "pointer", letterSpacing: "0.3px" }}
+        {/* Customer service - desktop only */}
+        {!mobile && <span onClick={() => onNavigate("account", "contact")} style={{ fontSize: "12px", color: T.textMuted, cursor: "pointer", letterSpacing: "0.3px" }}
           onMouseEnter={e => e.currentTarget.style.color = T.gold}
-          onMouseLeave={e => e.currentTarget.style.color = T.textMuted}>Help</span>
+          onMouseLeave={e => e.currentTarget.style.color = T.textMuted}>Help</span>}
       </div>
     </header>
   );
@@ -277,6 +295,7 @@ const ProductCard = ({ product, onProductClick, onAddToCart, cart, onRemoveFromC
 
 // ── HomePage ──────────────────────────────────────────────────────────────────
 const HomePage = ({ onNavigate, onAddToCart, onProductClick, products, cart, onRemoveFromCart }) => {
+  const mobile = useMobile();
   const featured = products.slice(0, 8);
 
   return (
@@ -286,9 +305,9 @@ const HomePage = ({ onNavigate, onAddToCart, onProductClick, products, cart, onR
         <img src="https://picsum.photos/seed/luxhero2024/1600/900" alt="hero"
           style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", filter: "brightness(0.35)" }} />
         <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to right, rgba(10,10,10,0.9) 40%, transparent)" }} />
-        <div className="fade-in" style={{ position: "relative", maxWidth: "600px", padding: "0 80px" }}>
+        <div className="fade-in" style={{ position: "relative", maxWidth: "600px", padding: mobile ? "0 24px" : "0 80px" }}>
           <div style={{ fontSize: "11px", color: T.gold, letterSpacing: "3px", marginBottom: "20px", textTransform: "uppercase" }}>New Season 2024</div>
-          <h1 style={{ fontFamily: SERIF, fontSize: "clamp(40px, 6vw, 72px)", fontWeight: 700, lineHeight: 1.1, color: T.text, marginBottom: "20px" }}>
+          <h1 style={{ fontFamily: SERIF, fontSize: mobile ? "32px" : "clamp(40px, 6vw, 72px)", fontWeight: 700, lineHeight: 1.1, color: T.text, marginBottom: "20px" }}>
             The Art of<br /><em style={{ color: T.gold }}>Smart Shopping</em>
           </h1>
           <p style={{ fontSize: "15px", color: T.textMuted, lineHeight: 1.7, marginBottom: "36px", maxWidth: "420px" }}>
@@ -300,7 +319,7 @@ const HomePage = ({ onNavigate, onAddToCart, onProductClick, products, cart, onR
           </div>
         </div>
         {/* Stats */}
-        <div style={{ position: "absolute", bottom: "40px", left: "80px", display: "flex", gap: "48px" }}>
+        {!mobile && <div style={{ position: "absolute", bottom: "40px", left: "80px", display: "flex", gap: "48px" }}>
           {[["2,000+","Products"],["10","Categories"],["Free","Delivery"]].map(([num, label]) => (
             <div key={label}>
               <div style={{ fontFamily: SERIF, fontSize: "28px", color: T.gold }}>{num}</div>
@@ -316,10 +335,10 @@ const HomePage = ({ onNavigate, onAddToCart, onProductClick, products, cart, onR
           <div style={{ fontSize: "11px", color: T.gold, letterSpacing: "3px", marginBottom: "12px" }}>BROWSE BY</div>
           <h2 style={{ fontFamily: SERIF, fontSize: "36px", color: T.text }}>Collections</h2>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "16px" }}>
-          {CATEGORIES.slice(0, 5).map(cat => (
+        <div style={{ display: "grid", gridTemplateColumns: mobile ? "repeat(2, 1fr)" : "repeat(5, 1fr)", gap: "12px" }}>
+          {CATEGORIES.slice(0, mobile ? 4 : 5).map(cat => (
             <div key={cat.id} onClick={() => onNavigate("products", cat.name)}
-              style={{ position: "relative", height: "220px", overflow: "hidden", cursor: "pointer", borderRadius: "2px" }}
+              style={{ position: "relative", height: mobile ? "140px" : "220px", overflow: "hidden", cursor: "pointer", borderRadius: "2px" }}
               onMouseEnter={e => e.currentTarget.querySelector("img").style.transform = "scale(1.08)"}
               onMouseLeave={e => e.currentTarget.querySelector("img").style.transform = "scale(1)"}>
               <img src={cat.img} alt={cat.name} style={{ width: "100%", height: "100%", objectFit: "cover", filter: "brightness(0.45)", transition: "transform 0.5s ease" }} />
@@ -336,7 +355,7 @@ const HomePage = ({ onNavigate, onAddToCart, onProductClick, products, cart, onR
       <Divider style={{ margin: "0 60px" }} />
 
       {/* Featured Products */}
-      <div style={{ padding: "80px 60px" }}>
+      <div style={{ padding: mobile ? "40px 16px" : "80px 60px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: "40px" }}>
           <div>
             <div style={{ fontSize: "11px", color: T.gold, letterSpacing: "3px", marginBottom: "10px" }}>HANDPICKED</div>
@@ -344,7 +363,7 @@ const HomePage = ({ onNavigate, onAddToCart, onProductClick, products, cart, onR
           </div>
           <GoldBtn outline small onClick={() => onNavigate("products")}>View All →</GoldBtn>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "20px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: mobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)", gap: mobile ? "12px" : "20px" }}>
           {featured.map(p => (
             <ProductCard key={p.id} product={p} onProductClick={onProductClick} onAddToCart={onAddToCart} cart={cart} onRemoveFromCart={onRemoveFromCart} />
           ))}
@@ -352,7 +371,7 @@ const HomePage = ({ onNavigate, onAddToCart, onProductClick, products, cart, onR
       </div>
 
       {/* Heritage Banner */}
-      <div style={{ margin: "0 60px 80px", position: "relative", height: "300px", overflow: "hidden", borderRadius: "2px" }}>
+      <div style={{ margin: mobile ? "0 16px 40px" : "0 60px 80px", position: "relative", height: mobile ? "200px" : "300px", overflow: "hidden", borderRadius: "2px" }}>
         <img src="https://picsum.photos/seed/heritage2024/1400/400" alt="banner"
           style={{ width: "100%", height: "100%", objectFit: "cover", filter: "brightness(0.3)" }} />
         <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center" }}>
@@ -364,7 +383,7 @@ const HomePage = ({ onNavigate, onAddToCart, onProductClick, products, cart, onR
       </div>
 
       {/* Footer */}
-      <footer style={{ background: T.surface, borderTop: `1px solid ${T.border}`, padding: "60px", display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: "40px" }}>
+      <footer style={{ background: T.surface, borderTop: `1px solid ${T.border}`, padding: mobile ? "32px 16px" : "60px", display: "grid", gridTemplateColumns: mobile ? "1fr" : "2fr 1fr 1fr 1fr", gap: mobile ? "24px" : "40px" }}>
         <div>
           <div style={{ fontFamily: SERIF, fontSize: "20px", color: T.text, marginBottom: "12px" }}>Prime<em style={{ color: T.gold }}>Deals</em></div>
           <p style={{ fontSize: "13px", color: T.textMuted, lineHeight: 1.8, maxWidth: "260px" }}>Your destination for quality products at unbeatable prices across India.</p>
@@ -394,6 +413,7 @@ const HomePage = ({ onNavigate, onAddToCart, onProductClick, products, cart, onR
 
 // ── ProductsPage ──────────────────────────────────────────────────────────────
 const ProductsPage = ({ onAddToCart, onProductClick, filterCategory, searchQuery, products, loading, cart, onRemoveFromCart, onLoadMore, hasMore }) => {
+  const mobile = useMobile();
   const [sortBy, setSortBy]       = useState("featured");
   const [selectedCat, setSelectedCat] = useState(filterCategory || "All");
   useEffect(() => { if (filterCategory) setSelectedCat(filterCategory); }, [filterCategory]);
@@ -408,7 +428,7 @@ const ProductsPage = ({ onAddToCart, onProductClick, filterCategory, searchQuery
   const cats = ["All", ...CATEGORIES.map(c => c.name)];
 
   return (
-    <div style={{ background: T.bg, minHeight: "100vh", padding: "0 60px 60px" }}>
+    <div style={{ background: T.bg, minHeight: "100vh", padding: mobile ? "0 16px 40px" : "0 60px 60px" }}>
       {/* Header */}
       <div style={{ padding: "40px 0 32px", borderBottom: `1px solid ${T.borderFaint}`, marginBottom: "32px" }}>
         {searchQuery
@@ -417,22 +437,24 @@ const ProductsPage = ({ onAddToCart, onProductClick, filterCategory, searchQuery
         <div style={{ fontSize: "13px", color: T.textMuted, marginTop: "6px" }}>{filtered.length} products</div>
       </div>
 
-      <div style={{ display: "flex", gap: "32px" }}>
+      <div style={{ display: "flex", flexDirection: mobile ? "column" : "row", gap: "32px" }}>
         {/* Sidebar */}
-        <div style={{ width: "200px", flexShrink: 0 }}>
+        <div style={{ width: mobile ? "100%" : "200px", flexShrink: 0 }}>
           <div style={{ fontSize: "10px", color: T.gold, letterSpacing: "2px", marginBottom: "16px" }}>CATEGORIES</div>
+          <div style={{ display: mobile ? "flex" : "block", overflowX: mobile ? "auto" : "visible", gap: "8px", paddingBottom: mobile ? "8px" : 0 }}>
           {cats.map(c => (
             <div key={c} onClick={() => setSelectedCat(c)}
               style={{ padding: "9px 0", fontSize: "13px", cursor: "pointer", color: selectedCat === c ? T.gold : T.textMuted, borderLeft: `2px solid ${selectedCat === c ? T.gold : "transparent"}`, paddingLeft: "12px", marginBottom: "2px", transition: "all 0.2s" }}
               onMouseEnter={e => { if (selectedCat !== c) e.currentTarget.style.color = T.text; }}
               onMouseLeave={e => { if (selectedCat !== c) e.currentTarget.style.color = T.textMuted; }}>{c}</div>
           ))}
-          <Divider style={{ margin: "20px 0" }} />
+          </div>
+          {!mobile && <><Divider style={{ margin: "20px 0" }} />
           <div style={{ fontSize: "10px", color: T.gold, letterSpacing: "2px", marginBottom: "16px" }}>SORT BY</div>
           {[["featured","Featured"],["low","Price: Low"],["high","Price: High"],["rated","Top Rated"]].map(([val, label]) => (
             <div key={val} onClick={() => setSortBy(val)}
               style={{ padding: "9px 0 9px 12px", fontSize: "13px", cursor: "pointer", color: sortBy === val ? T.gold : T.textMuted, borderLeft: `2px solid ${sortBy === val ? T.gold : "transparent"}`, marginBottom: "2px", transition: "all 0.2s" }}>{label}</div>
-          ))}
+          ))}</>
         </div>
 
         {/* Grid */}
@@ -451,7 +473,7 @@ const ProductsPage = ({ onAddToCart, onProductClick, filterCategory, searchQuery
             </div>
           ) : (
             <>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "20px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: mobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)", gap: mobile ? "10px" : "20px" }}>
                 {filtered.map(p => (
                   <ProductCard key={p.cartItemId || p.id} product={p} onProductClick={onProductClick} onAddToCart={onAddToCart} cart={cart} onRemoveFromCart={onRemoveFromCart} />
                 ))}
@@ -471,14 +493,15 @@ const ProductsPage = ({ onAddToCart, onProductClick, filterCategory, searchQuery
 
 // ── ProductDetailPage ─────────────────────────────────────────────────────────
 const ProductDetailPage = ({ product, onAddToCart, onNavigate }) => {
+  const mobile = useMobile();
   const [qty, setQty] = useState(1);
   const [added, setAdded] = useState(false);
   const handleAdd = () => { for (let i = 0; i < qty; i++) onAddToCart(product); setAdded(true); setTimeout(() => setAdded(false), 2000); };
 
   return (
-    <div style={{ background: T.bg, minHeight: "100vh", padding: "60px" }}>
+    <div style={{ background: T.bg, minHeight: "100vh", padding: mobile ? "24px 16px" : "60px" }}>
       <div style={{ color: T.textMuted, fontSize: "13px", marginBottom: "32px", cursor: "pointer" }} onClick={() => onNavigate("products")}>← Back to Products</div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "60px", maxWidth: "1100px" }}>
+      <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr" : "1fr 1fr", gap: mobile ? "24px" : "60px", maxWidth: "1100px" }}>
         {/* Image */}
         <div style={{ background: T.surface, borderRadius: "2px", overflow: "hidden", aspectRatio: "1" }}>
           <img src={product.imageUrl} alt={product.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={e => e.target.style.display = "none"} />
@@ -515,9 +538,10 @@ const ProductDetailPage = ({ product, onAddToCart, onNavigate }) => {
 
 // ── CartPage ──────────────────────────────────────────────────────────────────
 const CartPage = ({ cart, onRemove, onUpdateQty, onNavigate }) => {
+  const mobile = useMobile();
   const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
   return (
-    <div style={{ background: T.bg, minHeight: "100vh", padding: "60px" }}>
+    <div style={{ background: T.bg, minHeight: "100vh", padding: mobile ? "24px 16px" : "60px" }}>
       <h1 style={{ fontFamily: SERIF, fontSize: "32px", color: T.text, marginBottom: "8px" }}>Your Cart</h1>
       <div style={{ fontSize: "13px", color: T.textMuted, marginBottom: "40px" }}>{cart.length} item{cart.length !== 1 ? "s" : ""}</div>
       {cart.length === 0 ? (
@@ -572,6 +596,7 @@ const CartPage = ({ cart, onRemove, onUpdateQty, onNavigate }) => {
 
 // ── LoginPage ─────────────────────────────────────────────────────────────────
 const LoginPage = ({ onLogin, onNavigate }) => {
+  const mobile = useMobile();
   const [isReg, setIsReg]   = useState(false);
   const [form, setForm]     = useState({ name: "", email: "", password: "" });
   const [error, setError]   = useState("");
@@ -590,17 +615,17 @@ const LoginPage = ({ onLogin, onNavigate }) => {
 
   return (
     <div style={{ background: T.bg, minHeight: "100vh", display: "flex" }}>
-      {/* Left image */}
-      <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
+      {/* Left image - desktop only */}
+      {!mobile && <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
         <img src="https://picsum.photos/seed/loginlux/800/1200" alt="" style={{ width: "100%", height: "100%", objectFit: "cover", filter: "brightness(0.4)" }} />
         <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to right, transparent, rgba(10,10,10,0.8))" }} />
         <div style={{ position: "absolute", bottom: "60px", left: "60px" }}>
           <div style={{ fontFamily: SERIF, fontSize: "36px", color: T.text, marginBottom: "10px" }}>Welcome to<br /><em style={{ color: T.gold }}>PrimeDeals</em></div>
           <div style={{ color: T.textMuted, fontSize: "14px" }}>Your premium shopping destination</div>
         </div>
-      </div>
+      </div>}
       {/* Form */}
-      <div style={{ width: "460px", display: "flex", flexDirection: "column", justifyContent: "center", padding: "60px", background: T.surface }}>
+      <div style={{ width: mobile ? "100%" : "460px", display: "flex", flexDirection: "column", justifyContent: "center", padding: mobile ? "40px 24px" : "60px", background: T.surface }}>
         <div style={{ fontFamily: SERIF, fontSize: "28px", color: T.text, marginBottom: "6px" }}>{isReg ? "Create Account" : "Welcome Back"}</div>
         <div style={{ fontSize: "13px", color: T.textMuted, marginBottom: "36px" }}>{isReg ? "Join PrimeDeals today" : "Sign in to continue"}</div>
 
@@ -646,7 +671,7 @@ const CheckoutPage = ({ cart, user, onNavigate, onPlaceOrder }) => {
   const labelStyle = { fontSize: "11px", color: T.gold, letterSpacing: "1px", marginBottom: "6px", display: "block" };
 
   return (
-    <div style={{ background: T.bg, minHeight: "100vh", padding: "60px" }}>
+    <div style={{ background: T.bg, minHeight: "100vh", padding: mobile ? "24px 16px" : "60px" }}>
       <h1 style={{ fontFamily: SERIF, fontSize: "32px", color: T.text, marginBottom: "8px" }}>Checkout</h1>
       <div style={{ display: "flex", gap: "8px", marginBottom: "40px" }}>
         {["Delivery","Payment","Review"].map((s, i) => (
@@ -736,6 +761,7 @@ const CheckoutPage = ({ cart, user, onNavigate, onPlaceOrder }) => {
 
 // ── OrdersPage ────────────────────────────────────────────────────────────────
 const OrdersPage = ({ user, onNavigate }) => {
+  const mobile = useMobile();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   useEffect(() => {
@@ -744,7 +770,7 @@ const OrdersPage = ({ user, onNavigate }) => {
   }, [user]);
 
   return (
-    <div style={{ background: T.bg, minHeight: "100vh", padding: "60px" }}>
+    <div style={{ background: T.bg, minHeight: "100vh", padding: mobile ? "24px 16px" : "60px" }}>
       <h1 style={{ fontFamily: SERIF, fontSize: "32px", color: T.text, marginBottom: "8px" }}>Your Orders</h1>
       <div style={{ fontSize: "13px", color: T.textMuted, marginBottom: "40px" }}>{orders.length} order{orders.length !== 1 ? "s" : ""}</div>
       {loading ? <div style={{ color: T.textMuted }}>Loading...</div>
@@ -787,6 +813,7 @@ const OrdersPage = ({ user, onNavigate }) => {
 
 // ── AccountPage ───────────────────────────────────────────────────────────────
 const AccountPage = ({ user, onNavigate, defaultTab }) => {
+  const mobile = useMobile();
   const [tab, setTab] = useState(defaultTab || "orders");
   useEffect(() => { if (defaultTab) setTab(defaultTab); }, [defaultTab]);
 
@@ -891,20 +918,22 @@ const AccountPage = ({ user, onNavigate, defaultTab }) => {
   const labelStyle = { fontSize: "11px", color: T.gold, letterSpacing: "1px", marginBottom: "6px", display: "block" };
 
   return (
-    <div style={{ background: T.bg, minHeight: "100vh", padding: "60px", display: "flex", gap: "40px" }}>
+    <div style={{ background: T.bg, minHeight: "100vh", padding: mobile ? "20px 16px" : "60px", display: "flex", flexDirection: mobile ? "column" : "row", gap: mobile ? "16px" : "40px" }}>
       {/* Sidebar */}
-      <div style={{ width: "220px", flexShrink: 0 }}>
+      <div style={{ width: mobile ? "100%" : "220px", flexShrink: 0 }}>
         <div style={{ fontFamily: SERIF, fontSize: "20px", color: T.text, marginBottom: "4px" }}>{user?.name}</div>
         <div style={{ fontSize: "12px", color: T.textMuted, marginBottom: "28px" }}>{user?.email}</div>
+        <div style={{ display: mobile ? "flex" : "block", overflowX: mobile ? "auto" : "visible", gap: "8px" }}>
         {tabs.map(t => (
           <div key={t.id} onClick={() => setTab(t.id)}
-            style={{ display: "flex", alignItems: "center", gap: "10px", padding: "11px 14px", marginBottom: "4px", cursor: "pointer", borderLeft: `2px solid ${tab === t.id ? T.gold : "transparent"}`, background: tab === t.id ? T.goldDim : "transparent", borderRadius: "0 2px 2px 0", transition: "all 0.2s" }}
+            style={{ display: "flex", alignItems: "center", gap: "10px", padding: mobile ? "9px 12px" : "11px 14px", marginBottom: mobile ? 0 : "4px", cursor: "pointer", borderLeft: mobile ? "none" : `2px solid ${tab === t.id ? T.gold : "transparent"}`, borderBottom: mobile ? `2px solid ${tab === t.id ? T.gold : "transparent"}` : "none", flexShrink: mobile ? 0 : 1, whiteSpace: "nowrap", background: tab === t.id ? T.goldDim : "transparent", borderRadius: "0 2px 2px 0", transition: "all 0.2s" }}
             onMouseEnter={e => { if (tab !== t.id) e.currentTarget.style.background = T.surface2; }}
             onMouseLeave={e => { if (tab !== t.id) e.currentTarget.style.background = "transparent"; }}>
             <span style={{ fontSize: "15px" }}>{t.icon}</span>
             <span style={{ fontSize: "13px", color: tab === t.id ? T.gold : T.textMuted }}>{t.label}</span>
           </div>
         ))}
+        </div>
       </div>
 
       {/* Content */}
