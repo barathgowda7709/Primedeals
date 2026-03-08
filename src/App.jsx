@@ -1787,7 +1787,17 @@ export default function App() {
 
   // Cart
   const fetchCart = async () => {
-    try { const r = await api.getCart(); setCart(r.data.map(i => ({ ...i, id: i.productId, cartItemId: i.cartItemId }))); } catch {}
+    try {
+      const r = await api.getCart();
+      setCart((r.data.items || []).map(i => ({
+        id: i.productId,
+        cartItemId: i.cartItemId,
+        name: i.productName,
+        price: i.price,
+        imageUrl: i.imageUrl,
+        qty: i.quantity,
+      })));
+    } catch {}
   };
   useEffect(() => { if (user) fetchCart(); }, [user]);
 
