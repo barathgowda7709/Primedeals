@@ -152,30 +152,58 @@ const Navbar = ({ cartCount, onNavigate, searchQuery, onSearch, user, onLogout, 
         </div>
 
         {/* Account */}
-        <div style={{ position: "relative" }} onMouseEnter={() => setShowAcct(true)} onMouseLeave={() => setShowAcct(false)}>
+        <div style={{ position: "relative" }}
+          onMouseEnter={() => { clearTimeout(window._acctTimer); setShowAcct(true); }}
+          onMouseLeave={() => { window._acctTimer = setTimeout(() => setShowAcct(false), 150); }}>
           <div onClick={() => !user && onNavigate("login")} style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: "6px" }}>
-            <div style={{ width: "32px", height: "32px", borderRadius: "50%", background: T.goldDim, border: `1px solid ${T.gold}`, display: "flex", alignItems: "center", justifyContent: "center", color: T.gold, fontSize: "13px", fontWeight: 600 }}>
-              {user ? user.name?.[0]?.toUpperCase() : "?"}
+            <div style={{ width: "34px", height: "34px", borderRadius: "50%", background: T.goldDim, border: `1px solid ${T.gold}`, display: "flex", alignItems: "center", justifyContent: "center", color: T.gold, fontSize: "13px", fontWeight: 700 }}>
+              {user ? user.name?.[0]?.toUpperCase() : "👤"}
             </div>
             <span style={{ fontSize: "12px", color: T.textMuted }}>{user ? user.name?.split(" ")[0] : "Sign in"}</span>
           </div>
-          {user && showAcct && (
-            <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, background: T.surface, border: `1px solid ${T.border}`, borderRadius: "2px", minWidth: "200px", zIndex: 9999, overflow: "hidden" }}>
-              <div style={{ padding: "12px 16px", borderBottom: `1px solid ${T.borderFaint}` }}>
-                <div style={{ fontSize: "11px", color: T.textMuted, letterSpacing: "0.5px" }}>SIGNED IN AS</div>
-                <div style={{ fontSize: "13px", fontWeight: 600, color: T.text, marginTop: "2px" }}>{user.name}</div>
-              </div>
-              {[["👤 Your Account","account"],["📦 Your Orders","orders"],["↩️ Returns","orders"]].map(([label, pg]) => (
-                <div key={label} onClick={() => { onNavigate(pg); setShowAcct(false); }}
-                  style={{ padding: "10px 16px", fontSize: "13px", color: T.textMuted, cursor: "pointer", transition: "all 0.15s" }}
-                  onMouseEnter={e => { e.currentTarget.style.background = T.surface2; e.currentTarget.style.color = T.gold; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = T.textMuted; }}>{label}</div>
-              ))}
-              <div style={{ borderTop: `1px solid ${T.borderFaint}` }}>
-                <div onClick={() => { onLogout(); setShowAcct(false); }}
-                  style={{ padding: "10px 16px", fontSize: "13px", color: T.red, cursor: "pointer" }}
-                  onMouseEnter={e => e.currentTarget.style.background = T.surface2}
-                  onMouseLeave={e => e.currentTarget.style.background = "transparent"}>🚪 Sign Out</div>
+          {showAcct && (
+            <div style={{ position: "absolute", top: "100%", right: 0, paddingTop: "8px", zIndex: 9999, minWidth: "220px" }}>
+              <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: "2px", overflow: "hidden", boxShadow: "0 12px 40px rgba(0,0,0,0.5)" }}>
+                {user ? (
+                  <>
+                    <div style={{ padding: "14px 16px", borderBottom: `1px solid ${T.borderFaint}`, background: T.surface2 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                        <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: T.goldDim, border: `1px solid ${T.gold}`, display: "flex", alignItems: "center", justifyContent: "center", color: T.gold, fontSize: "14px", fontWeight: 700 }}>{user.name?.[0]?.toUpperCase()}</div>
+                        <div>
+                          <div style={{ fontSize: "13px", fontWeight: 600, color: T.text }}>{user.name}</div>
+                          <div style={{ fontSize: "11px", color: T.textMuted }}>{user.email}</div>
+                        </div>
+                      </div>
+                    </div>
+                    {[["👤","Your Account","account"],["📦","Your Orders","orders"],["🏪","Seller Hub","account"],["↩️","Returns","orders"]].map(([icon, label, pg]) => (
+                      <div key={label}
+                        onClick={() => { onNavigate(pg, label === "Seller Hub" ? "seller" : undefined); setShowAcct(false); }}
+                        style={{ padding: "11px 16px", fontSize: "13px", color: T.textMuted, cursor: "pointer", display: "flex", alignItems: "center", gap: "10px", transition: "all 0.15s" }}
+                        onMouseEnter={e => { e.currentTarget.style.background = T.surface2; e.currentTarget.style.color = T.gold; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = T.textMuted; }}>
+                        <span>{icon}</span>{label}
+                      </div>
+                    ))}
+                    <div style={{ borderTop: `1px solid ${T.borderFaint}` }}>
+                      <div onClick={() => { onLogout(); setShowAcct(false); }}
+                        style={{ padding: "11px 16px", fontSize: "13px", color: T.red, cursor: "pointer", display: "flex", alignItems: "center", gap: "10px" }}
+                        onMouseEnter={e => e.currentTarget.style.background = T.surface2}
+                        onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                        <span>🚪</span> Sign Out
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ padding: "14px 16px", borderBottom: `1px solid ${T.borderFaint}` }}>
+                      <div style={{ fontSize: "12px", color: T.textMuted, marginBottom: "10px" }}>Sign in for the best experience</div>
+                      <GoldBtn onClick={() => { onNavigate("login"); setShowAcct(false); }} style={{ width: "100%", padding: "9px", textAlign: "center" }}>Sign In</GoldBtn>
+                    </div>
+                    <div style={{ padding: "11px 16px", fontSize: "12px", color: T.textMuted }}>
+                      New customer? <span onClick={() => { onNavigate("login"); setShowAcct(false); }} style={{ color: T.gold, cursor: "pointer" }}>Start here</span>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           )}
