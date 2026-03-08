@@ -694,6 +694,197 @@ const OrdersPage = ({ user, onNavigate }) => {
   );
 };
 
+
+const AccountPage = ({ user, onNavigate }) => {
+  const [tab, setTab] = useState("orders");
+  const [profile, setProfile] = useState({ name: user?.name || "", phone: "" });
+  const [passwords, setPasswords] = useState({ current: "", newPass: "", confirm: "" });
+  const [profileMsg, setProfileMsg] = useState("");
+  const [passMsg, setPassMsg] = useState("");
+  const [addresses, setAddresses] = useState([]);
+  const [addrForm, setAddrForm] = useState({ street: "", city: "", state: "", pinCode: "", phoneNumber: "", name: "" });
+  const [showAddrForm, setShowAddrForm] = useState(false);
+  const [addrMsg, setAddrMsg] = useState("");
+
+  useEffect(() => {
+    api.getProfile().then(r => setProfile({ name: r.data.name, phone: r.data.phone || "" })).catch(() => {});
+    api.getAddresses().then(r => setAddresses(r.data)).catch(() => {});
+  }, []);
+
+  const saveProfile = async () => {
+    try {
+      await api.updateProfile({ name: profile.name, phone: profile.phone });
+      setProfileMsg("✓ Profile updated!");
+      setTimeout(() => setProfileMsg(""), 3000);
+    } catch { setProfileMsg("Failed to update."); }
+  };
+
+  const changePassword = async () => {
+    if (passwords.newPass !== passwords.confirm) { setPassMsg("Passwords don't match."); return; }
+    try {
+      await api.updateProfile({ currentPassword: passwords.current, newPassword: passwords.newPass });
+      setPassMsg("✓ Password changed!");
+      setPasswords({ current: "", newPass: "", confirm: "" });
+      setTimeout(() => setPassMsg(""), 3000);
+    } catch (e) { setPassMsg(e.response?.data?.message || "Current password incorrect."); }
+  };
+
+  const addAddr = async () => {
+    try {
+      const res = await api.addAddress(addrForm);
+      setAddresses(prev => [...prev, res.data]);
+      setAddrForm({ street: "", city: "", state: "", pinCode: "", phoneNumber: "", name: "" });
+      setShowAddrForm(false);
+      setAddrMsg("✓ Address added!");
+      setTimeout(() => setAddrMsg(""), 3000);
+    } catch { setAddrMsg("Failed to add address."); }
+  };
+
+  const removeAddr = async (id) => {
+    try {
+      await api.deleteAddress(id);
+      setAddresses(prev => prev.filter(a => a.id !== id));
+    } catch {}
+  };
+
+  const tabs = [
+    { id: "orders", label: "📦 Your Orders" },
+    { id: "security", label: "🔒 Login & Security" },
+    { id: "payment", label: "💳 Payment Methods" },
+    { id: "contact", label: "📞 Contact Us" },
+    { id: "addresses", label: "📍 Your Addresses" },
+  ];
+
+  const inputStyle = { width: "100%", padding: "10px 12px", border: "1px solid #ddd", borderRadius: "6px", fontSize: "14px", boxSizing: "border-box", marginBottom: "12px" };
+  const btnStyle = { background: "#ff9900", border: "none", padding: "10px 24px", borderRadius: "20px", fontWeight: 700, fontSize: "14px", cursor: "pointer" };
+
+  return (
+    <div style={{ background: "#eaeded", minHeight: "100vh", padding: "24px 16px" }}>
+      <div style={{ maxWidth: "1000px", margin: "0 auto" }}>
+        <h1 style={{ fontFamily: "Georgia, serif", fontWeight: 400, marginBottom: "24px" }}>Your Account</h1>
+        <div style={{ display: "flex", gap: "20px", flexWrap: "wrap" }}>
+          {/* Sidebar */}
+          <div style={{ width: "220px", flexShrink: 0 }}>
+            {tabs.map(t => (
+              <div key={t.id} onClick={() => t.id === "orders" ? onNavigate("orders") : setTab(t.id)}
+                style={{ padding: "12px 16px", background: tab === t.id ? "#fff3cd" : "white", borderLeft: tab === t.id ? "4px solid #ff9900" : "4px solid transparent", cursor: "pointer", marginBottom: "4px", borderRadius: "4px", fontWeight: tab === t.id ? 700 : 400, fontSize: "14px" }}>
+                {t.label}
+              </div>
+            ))}
+          </div>
+
+          {/* Content */}
+          <div style={{ flex: 1, minWidth: "300px", background: "white", borderRadius: "8px", padding: "28px" }}>
+
+            {/* LOGIN & SECURITY */}
+            {tab === "security" && (
+              <div>
+                <h2 style={{ fontFamily: "Georgia, serif", fontWeight: 400, marginBottom: "24px" }}>Login & Security</h2>
+                <h3 style={{ fontSize: "15px", marginBottom: "12px" }}>Edit Name & Mobile</h3>
+                <input placeholder="Full Name" value={profile.name} onChange={e => setProfile({ ...profile, name: e.target.value })} style={inputStyle} />
+                <input placeholder="Mobile Number" value={profile.phone} onChange={e => setProfile({ ...profile, phone: e.target.value })} style={inputStyle} />
+                <div style={{ color: "#888", fontSize: "13px", marginBottom: "12px" }}>Email: {user?.email} (cannot be changed)</div>
+                {profileMsg && <div style={{ color: profileMsg.startsWith("✓") ? "green" : "red", marginBottom: "12px", fontSize: "13px" }}>{profileMsg}</div>}
+                <button style={btnStyle} onClick={saveProfile}>Save Changes</button>
+                <hr style={{ margin: "28px 0", border: "none", borderTop: "1px solid #eee" }} />
+                <h3 style={{ fontSize: "15px", marginBottom: "12px" }}>Change Password</h3>
+                <input placeholder="Current Password" type="password" value={passwords.current} onChange={e => setPasswords({ ...passwords, current: e.target.value })} style={inputStyle} />
+                <input placeholder="New Password" type="password" value={passwords.newPass} onChange={e => setPasswords({ ...passwords, newPass: e.target.value })} style={inputStyle} />
+                <input placeholder="Confirm New Password" type="password" value={passwords.confirm} onChange={e => setPasswords({ ...passwords, confirm: e.target.value })} style={inputStyle} />
+                {passMsg && <div style={{ color: passMsg.startsWith("✓") ? "green" : "red", marginBottom: "12px", fontSize: "13px" }}>{passMsg}</div>}
+                <button style={btnStyle} onClick={changePassword}>Change Password</button>
+              </div>
+            )}
+
+            {/* PAYMENT METHODS */}
+            {tab === "payment" && (
+              <div>
+                <h2 style={{ fontFamily: "Georgia, serif", fontWeight: 400, marginBottom: "24px" }}>Payment Methods</h2>
+                {[
+                  { icon: "👛", title: "Amazon Pay Wallet", sub: "Balance: ₹0.00", color: "#e8f4f8" },
+                  { icon: "💳", title: "Debit Card", sub: "Add a debit card for easy payments", color: "#fef9e7" },
+                  { icon: "💰", title: "Credit Card", sub: "Add a credit card for easy payments", color: "#fdf2f8" },
+                ].map(p => (
+                  <div key={p.title} style={{ display: "flex", alignItems: "center", gap: "16px", padding: "18px", border: "1px solid #e3e6e6", borderRadius: "8px", marginBottom: "12px", background: p.color }}>
+                    <span style={{ fontSize: "32px" }}>{p.icon}</span>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: "15px" }}>{p.title}</div>
+                      <div style={{ fontSize: "13px", color: "#555", marginTop: "2px" }}>{p.sub}</div>
+                    </div>
+                    <button style={{ marginLeft: "auto", background: "#ff9900", border: "none", padding: "8px 16px", borderRadius: "16px", fontWeight: 700, fontSize: "12px", cursor: "pointer" }}>Add</button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* CONTACT US */}
+            {tab === "contact" && (
+              <div>
+                <h2 style={{ fontFamily: "Georgia, serif", fontWeight: 400, marginBottom: "24px" }}>Contact Us</h2>
+                <div style={{ display: "grid", gap: "16px" }}>
+                  {[
+                    { icon: "📞", label: "Customer Care (24x7)", value: "1800-419-7355" },
+                    { icon: "📞", label: "Prime Support", value: "1800-3000-9009" },
+                    { icon: "📞", label: "Seller Support", value: "1800-572-1571" },
+                    { icon: "✉️", label: "Email Support", value: "support@primedeals.in" },
+                    { icon: "✉️", label: "Grievance Officer", value: "grievance@primedeals.in" },
+                  ].map(c => (
+                    <div key={c.label} style={{ display: "flex", gap: "14px", alignItems: "flex-start", padding: "16px", border: "1px solid #e3e6e6", borderRadius: "8px" }}>
+                      <span style={{ fontSize: "22px" }}>{c.icon}</span>
+                      <div>
+                        <div style={{ fontSize: "13px", color: "#888" }}>{c.label}</div>
+                        <div style={{ fontWeight: 700, fontSize: "15px", color: "#007185" }}>{c.value}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <p style={{ fontSize: "12px", color: "#aaa", marginTop: "20px" }}>Available Mon-Sun, 8 AM – 10 PM IST</p>
+              </div>
+            )}
+
+            {/* ADDRESSES */}
+            {tab === "addresses" && (
+              <div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+                  <h2 style={{ fontFamily: "Georgia, serif", fontWeight: 400, margin: 0 }}>Your Addresses</h2>
+                  <button style={btnStyle} onClick={() => setShowAddrForm(!showAddrForm)}>+ Add Address</button>
+                </div>
+                {addrMsg && <div style={{ color: addrMsg.startsWith("✓") ? "green" : "red", marginBottom: "12px", fontSize: "13px" }}>{addrMsg}</div>}
+                {showAddrForm && (
+                  <div style={{ border: "1px solid #e3e6e6", borderRadius: "8px", padding: "20px", marginBottom: "20px" }}>
+                    <h3 style={{ fontSize: "15px", marginBottom: "14px" }}>New Address</h3>
+                    {[["Full Name", "name"], ["Street / Area", "street"], ["City", "city"], ["State", "state"], ["PIN Code", "pinCode"], ["Phone Number", "phoneNumber"]].map(([lbl, key]) => (
+                      <input key={key} placeholder={lbl} value={addrForm[key]} onChange={e => setAddrForm({ ...addrForm, [key]: e.target.value })} style={inputStyle} />
+                    ))}
+                    <div style={{ display: "flex", gap: "10px" }}>
+                      <button style={btnStyle} onClick={addAddr}>Save Address</button>
+                      <button style={{ ...btnStyle, background: "#eee", color: "#333" }} onClick={() => setShowAddrForm(false)}>Cancel</button>
+                    </div>
+                  </div>
+                )}
+                {addresses.length === 0 && !showAddrForm && (
+                  <div style={{ textAlign: "center", padding: "40px", color: "#888" }}>
+                    <div style={{ fontSize: "48px", marginBottom: "12px" }}>📍</div>
+                    <p>No saved addresses yet.</p>
+                  </div>
+                )}
+                {addresses.map(a => (
+                  <div key={a.id} style={{ border: "1px solid #e3e6e6", borderRadius: "8px", padding: "16px", marginBottom: "12px", position: "relative" }}>
+                    <div style={{ fontWeight: 700 }}>{a.name}</div>
+                    <div style={{ fontSize: "13px", color: "#555", marginTop: "4px" }}>{a.street}, {a.city}, {a.state} - {a.pinCode}</div>
+                    <div style={{ fontSize: "13px", color: "#555" }}>Phone: {a.phoneNumber}</div>
+                    <button onClick={() => removeAddr(a.id)} style={{ marginTop: "10px", background: "none", border: "1px solid #c45500", color: "#c45500", padding: "4px 14px", borderRadius: "12px", fontSize: "12px", cursor: "pointer" }}>Remove</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default function App() {
   const [page, setPage] = useState("home");
   const [cart, setCart] = useState([]);
@@ -818,6 +1009,7 @@ export default function App() {
       case "cart": return <CartPage cart={cart} onRemove={removeFromCart} onUpdateQty={updateQty} onNavigate={navigate} />;
       case "checkout": return <CheckoutPage cart={cart} user={user} onNavigate={navigate} onPlaceOrder={placeOrder} />;
       case "login": return <LoginPage onLogin={handleLogin} onNavigate={navigate} />;
+      case "account": return <AccountPage user={user} onNavigate={navigate} />;
       case "orders": return <OrdersPage user={user} onNavigate={navigate} />;
       default: return null;
     }

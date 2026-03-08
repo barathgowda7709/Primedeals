@@ -29,3 +29,11 @@ export const placeOrder = (shippingAddress) =>
 export const getMyOrders = () => API.get("/orders");
 export const cancelOrder = (orderId) =>
   API.put(`/orders/${orderId}/cancel`);
+// ─── PROFILE ──────────────────────────────────────────────────────────────────
+export const getProfile = () => API.get("/auth/profile");
+export const updateProfile = (data) => API.put("/auth/profile", data);
+// ─── ADDRESSES ────────────────────────────────────────────────────────────────
+export const getAddresses = () => API.get("/addresses");
+export const addAddress = (data) => API.post("/addresses", data);
+export const deleteAddress = (id) => API.delete(`/addresses/${id}`);
+export const setDefaultAddress = (id) => API.put(`/addresses/${id}/default`);
