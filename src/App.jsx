@@ -74,6 +74,8 @@ const Navbar = ({ cartCount, onNavigate, searchQuery, onSearch, user, onLogout, 
   const [showSugg, setShowSugg]         = useState(false);
   const [scrolled, setScrolled]         = useState(false);
   const [menuOpen, setMenuOpen]         = useState(false);
+  const [showMobileSearch, setShowMobileSearch] = useState(false);
+  const [mobileQuery, setMobileQuery]   = useState("");
   const mobile                          = useMobile();
 
   useEffect(() => { setQuery(searchQuery || ""); }, [searchQuery]);
@@ -112,6 +114,7 @@ const Navbar = ({ cartCount, onNavigate, searchQuery, onSearch, user, onLogout, 
   };
 
   return (
+    <>
     <header style={navStyle}>
       {/* Logo */}
       <div onClick={() => onNavigate("home")} style={{ cursor: "pointer", display: "flex", alignItems: "baseline", gap: "3px", minWidth: "140px" }}>
@@ -160,7 +163,7 @@ const Navbar = ({ cartCount, onNavigate, searchQuery, onSearch, user, onLogout, 
       {/* Right icons */}
       <div style={{ display: "flex", alignItems: "center", gap: mobile ? "16px" : "24px" }}>
         {/* Mobile search icon */}
-        {mobile && <span onClick={() => { const q = prompt("Search products..."); if (q) { onSearch(q); onNavigate("products"); } }} style={{ fontSize: "18px", color: T.textMuted, cursor: "pointer" }}>🔍</span>}
+        {mobile && <span onClick={() => setShowMobileSearch(v => !v)} style={{ fontSize: "18px", color: showMobileSearch ? T.gold : T.textMuted, cursor: "pointer", transition: "color 0.2s" }}>🔍</span>}
         {/* Cart */}
         <div onClick={() => onNavigate("cart")} style={{ position: "relative", cursor: "pointer" }}>
           <span style={{ fontSize: "20px", color: T.textMuted }}>🛒</span>
@@ -171,14 +174,17 @@ const Navbar = ({ cartCount, onNavigate, searchQuery, onSearch, user, onLogout, 
 
         {/* Account */}
         <div style={{ position: "relative" }}
-          onMouseEnter={() => { clearTimeout(window._acctTimer); setShowAcct(true); }}
-          onMouseLeave={() => { window._acctTimer = setTimeout(() => setShowAcct(false), 150); }}>
-          <div onClick={() => !user && onNavigate("login")} style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: "6px" }}>
+          onMouseEnter={() => { if (!mobile) { clearTimeout(window._acctTimer); setShowAcct(true); } }}
+          onMouseLeave={() => { if (!mobile) { window._acctTimer = setTimeout(() => setShowAcct(false), 150); } }}>
+          <div onClick={() => { if (mobile) { setShowAcct(v => !v); } else if (!user) { onNavigate("login"); } }} style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: "6px" }}>
             <div style={{ width: "34px", height: "34px", borderRadius: "50%", background: T.goldDim, border: `1px solid ${T.gold}`, display: "flex", alignItems: "center", justifyContent: "center", color: T.gold, fontSize: "13px", fontWeight: 700 }}>
               {user ? user.name?.[0]?.toUpperCase() : "👤"}
             </div>
             <span style={{ fontSize: "12px", color: T.textMuted }}>{user ? user.name?.split(" ")[0] : "Sign in"}</span>
           </div>
+          {showAcct && mobile && (
+            <div onClick={() => setShowAcct(false)} style={{ position: "fixed", inset: 0, zIndex: 9990 }} />
+          )}
           {showAcct && (
             <div style={{ position: "absolute", top: "100%", right: 0, paddingTop: "8px", zIndex: 9999, minWidth: "220px" }}>
               <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: "2px", overflow: "hidden", boxShadow: "0 12px 40px rgba(0,0,0,0.5)" }}>
@@ -233,6 +239,29 @@ const Navbar = ({ cartCount, onNavigate, searchQuery, onSearch, user, onLogout, 
           onMouseLeave={e => e.currentTarget.style.color = T.textMuted}>Help</span>}
       </div>
     </header>
+
+    {/* Mobile search overlay — slides in below navbar when 🔍 is tapped */}
+    {mobile && showMobileSearch && (
+      <div style={{ background: T.surface, borderBottom: `1px solid ${T.border}`, padding: "10px 16px", position: "sticky", top: "56px", zIndex: 999, boxShadow: "0 4px 20px rgba(0,0,0,0.4)" }}>
+        <form
+          onSubmit={e => {
+            e.preventDefault();
+            if (mobileQuery.trim()) { onSearch(mobileQuery); onNavigate("products"); }
+            setShowMobileSearch(false);
+          }}
+          style={{ display: "flex", alignItems: "center", background: T.surface2, border: `1px solid ${T.gold}`, borderRadius: "2px" }}>
+          <input
+            autoFocus
+            value={mobileQuery}
+            onChange={e => setMobileQuery(e.target.value)}
+            placeholder="Search products..."
+            style={{ flex: 1, background: "transparent", border: "none", outline: "none", padding: "11px 14px", color: T.text, fontSize: "15px", fontFamily: SANS }} />
+          <button type="submit" style={{ background: "none", border: "none", padding: "0 12px", cursor: "pointer", color: T.gold, fontSize: "18px", lineHeight: 1 }}>⌕</button>
+          <span onClick={() => setShowMobileSearch(false)} style={{ padding: "0 14px", color: T.textMuted, cursor: "pointer", fontSize: "18px", lineHeight: 1 }}>✕</span>
+        </form>
+      </div>
+    )}
+    </>
   );
 };
 
