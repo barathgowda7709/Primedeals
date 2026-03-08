@@ -732,6 +732,7 @@ const AccountPage = ({ user, onNavigate }) => {
 
   const addAddr = async () => {
     if (!/^[0-9]{10}$/.test(addrForm.phone)) { setAddrMsg("Phone must be exactly 10 digits."); return; }
+    if (!/^[0-9]{6}$/.test(addrForm.pinCode)) { setAddrMsg("PIN code must be exactly 6 digits."); return; }
     try {
       const res = await api.addAddress(addrForm);
       setAddresses(prev => [...prev, res.data]);
@@ -784,7 +785,14 @@ const AccountPage = ({ user, onNavigate }) => {
                 <h2 style={{ fontFamily: "Georgia, serif", fontWeight: 400, marginBottom: "24px" }}>Login & Security</h2>
                 <h3 style={{ fontSize: "15px", marginBottom: "12px" }}>Edit Name & Mobile</h3>
                 <input placeholder="Full Name" value={profile.name} onChange={e => setProfile({ ...profile, name: e.target.value })} style={inputStyle} />
-                <input placeholder="Mobile Number" value={profile.phone} onChange={e => setProfile({ ...profile, phone: e.target.value })} style={inputStyle} />
+                <div style={{ display: "flex", alignItems: "center", marginBottom: "12px" }}>
+                  <span style={{ padding: "10px 12px", background: "#f0f0f0", border: "1px solid #ddd", borderRadius: "6px 0 0 6px", fontSize: "14px", whiteSpace: "nowrap" }}>+91</span>
+                  <input placeholder="10-digit mobile number" value={profile.phone}
+                    inputMode="numeric"
+                    maxLength={10}
+                    onChange={e => setProfile({ ...profile, phone: e.target.value.replace(/\D/g, "").slice(0, 10) })}
+                    style={{ ...inputStyle, marginBottom: 0, borderRadius: "0 6px 6px 0", borderLeft: "none" }} />
+                </div>
                 <div style={{ color: "#888", fontSize: "13px", marginBottom: "12px" }}>Email: {user?.email} (cannot be changed)</div>
                 {profileMsg && <div style={{ color: profileMsg.startsWith("✓") ? "green" : "red", marginBottom: "12px", fontSize: "13px" }}>{profileMsg}</div>}
                 <button style={btnStyle} onClick={saveProfile}>Save Changes</button>
@@ -858,8 +866,9 @@ const AccountPage = ({ user, onNavigate }) => {
                     {[["Full Name", "fullName"], ["Street / Area", "street"], ["City", "city"], ["State", "state"], ["PIN Code", "pinCode"], ["Phone (10 digits)", "phone"]].map(([lbl, key]) => (
                       <input key={key} placeholder={lbl} value={addrForm[key]}
                         inputMode={key === "phone" || key === "pinCode" ? "numeric" : "text"}
+                        maxLength={key === "phone" ? 10 : key === "pinCode" ? 6 : undefined}
                         onChange={e => {
-                          const val = (key === "phone" || key === "pinCode") ? e.target.value.replace(/\D/g, "") : e.target.value;
+                          const val = key === "phone" ? e.target.value.replace(/\D/g, "").slice(0, 10) : key === "pinCode" ? e.target.value.replace(/\D/g, "").slice(0, 6) : e.target.value;
                           setAddrForm({ ...addrForm, [key]: val });
                         }} style={inputStyle} />
                     ))}
