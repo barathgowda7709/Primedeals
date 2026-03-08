@@ -199,12 +199,18 @@ const Navbar = ({ cartCount, onNavigate, searchQuery, onSearch, user, onLogout, 
                         </div>
                       </div>
                     </div>
-                    {[["👤","Your Account","account"],["📦","Your Orders","orders"],["🏪","Seller Hub","account"],["↩️","Returns","orders"]].map(([icon, label, pg]) => (
+                    {[
+                      ["👤","Your Account","account", null],
+                      ["📦","Your Orders","orders", null],
+                      ["🏪","Seller Hub","account","seller"],
+                      ["↩️","Returns","orders", null],
+                      ...(user?.role === "ADMIN" ? [["🛡️","Admin Panel","admin", null]] : [])
+                    ].map(([icon, label, pg, extra]) => (
                       <div key={label}
-                        onClick={() => { onNavigate(pg, label === "Seller Hub" ? "seller" : undefined); setShowAcct(false); }}
-                        style={{ padding: "11px 16px", fontSize: "13px", color: T.textMuted, cursor: "pointer", display: "flex", alignItems: "center", gap: "10px", transition: "all 0.15s" }}
+                        onClick={() => { onNavigate(pg, extra || undefined); setShowAcct(false); }}
+                        style={{ padding: "11px 16px", fontSize: "13px", color: label === "Admin Panel" ? T.gold : T.textMuted, cursor: "pointer", display: "flex", alignItems: "center", gap: "10px", transition: "all 0.15s" }}
                         onMouseEnter={e => { e.currentTarget.style.background = T.surface2; e.currentTarget.style.color = T.gold; }}
-                        onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = T.textMuted; }}>
+                        onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = label === "Admin Panel" ? T.gold : T.textMuted; }}>
                         <span>{icon}</span>{label}
                       </div>
                     ))}
@@ -1205,6 +1211,288 @@ const Toast = ({ msg }) => msg ? (
   </div>
 ) : null;
 
+// ── AdminPage ─────────────────────────────────────────────────────────────────
+const AdminPage = ({ onNavigate }) => {
+  const [tab, setTab]         = useState("overview");
+  const [stats, setStats]     = useState(null);
+  const [users, setUsers]     = useState([]);
+  const [sellers, setSellers] = useState([]);
+  const [orders, setOrders]   = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [msg, setMsg]         = useState(null);
+  const mobile                = useMobile();
+
+  const flash = m => { setMsg(m); setTimeout(() => setMsg(null), 2500); };
+
+  // Load data for current tab
+  useEffect(() => {
+    setLoading(true);
+    const load = async () => {
+      try {
+        if (tab === "overview") {
+          const r = await api.adminGetStats(); setStats(r.data);
+        } else if (tab === "users") {
+          const r = await api.adminGetUsers(); setUsers(r.data);
+        } else if (tab === "sellers") {
+          const r = await api.adminGetSellers(); setSellers(r.data);
+        } else if (tab === "orders") {
+          const r = await api.adminGetOrders(); setOrders(r.data);
+        }
+      } catch (e) { flash("Error loading data"); }
+      finally { setLoading(false); }
+    };
+    load();
+  }, [tab]);
+
+  const deleteUser = async id => {
+    if (!window.confirm("Delete this user?")) return;
+    try { await api.adminDeleteUser(id); setUsers(u => u.filter(x => x.id !== id)); flash("User deleted"); }
+    catch { flash("Failed to delete user"); }
+  };
+
+  const updateSeller = async (id, status) => {
+    try {
+      await api.adminUpdateSellerStatus(id, status);
+      setSellers(s => s.map(x => x.id === id ? { ...x, status } : x));
+      flash(`Seller ${status.toLowerCase()}`);
+    } catch { flash("Failed to update seller"); }
+  };
+
+  const updateOrder = async (id, status) => {
+    try {
+      await api.adminUpdateOrderStatus(id, status);
+      setOrders(o => o.map(x => x.orderId === id ? { ...x, status } : x));
+      flash(`Order marked ${status}`);
+    } catch { flash("Failed to update order"); }
+  };
+
+  const fmt = n => n == null ? "—" : Number(n).toLocaleString("en-IN");
+  const fmtMoney = n => n == null ? "—" : `₹${Number(n).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
+  const fmtDate = d => d ? new Date(d).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—";
+
+  const TABS = [
+    { id: "overview", icon: "📊", label: "Overview" },
+    { id: "users",    icon: "👥", label: "Users" },
+    { id: "sellers",  icon: "🏪", label: "Sellers" },
+    { id: "orders",   icon: "🛒", label: "Orders" },
+  ];
+
+  const statusColor = s => ({ ACTIVE: T.green, PENDING: T.gold, SUSPENDED: T.red }[s] || T.textMuted);
+  const orderColor  = s => ({ PENDING: T.gold, PROCESSING: "#60a5fa", SHIPPED: "#a78bfa", DELIVERED: T.green, CANCELLED: T.red }[s] || T.textMuted);
+
+  const Th = ({ children }) => (
+    <th style={{ padding: "10px 14px", textAlign: "left", fontSize: "11px", fontWeight: 600, color: T.textMuted, textTransform: "uppercase", letterSpacing: "0.5px", borderBottom: `1px solid ${T.border}`, background: T.surface2 }}>
+      {children}
+    </th>
+  );
+  const Td = ({ children, style = {} }) => (
+    <td style={{ padding: "11px 14px", fontSize: "13px", color: T.text, borderBottom: `1px solid ${T.borderFaint}`, verticalAlign: "middle", ...style }}>
+      {children}
+    </td>
+  );
+
+  return (
+    <div style={{ minHeight: "100vh", background: T.bg, paddingBottom: "60px" }}>
+      {/* Header */}
+      <div style={{ borderBottom: `1px solid ${T.border}`, padding: mobile ? "20px 16px 0" : "28px 48px 0", background: T.surface }}>
+        <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "24px" }}>
+            <span style={{ fontSize: "28px" }}>🛡️</span>
+            <div>
+              <h1 style={{ fontFamily: SERIF, fontSize: "24px", color: T.text, margin: 0 }}>Admin Panel</h1>
+              <p style={{ fontSize: "13px", color: T.textMuted, margin: 0 }}>Manage your platform</p>
+            </div>
+          </div>
+          {/* Tabs */}
+          <div style={{ display: "flex", gap: "4px" }}>
+            {TABS.map(t => (
+              <div key={t.id} onClick={() => setTab(t.id)}
+                style={{ padding: "10px 20px", fontSize: "13px", cursor: "pointer", borderBottom: tab === t.id ? `2px solid ${T.gold}` : "2px solid transparent", color: tab === t.id ? T.gold : T.textMuted, transition: "all 0.2s", display: "flex", alignItems: "center", gap: "6px" }}>
+                <span>{t.icon}</span>{!mobile && t.label}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Flash message */}
+      {msg && (
+        <div style={{ position: "fixed", top: "80px", left: "50%", transform: "translateX(-50%)", background: T.surface, border: `1px solid ${T.gold}`, color: T.text, padding: "10px 24px", borderRadius: "2px", fontSize: "13px", zIndex: 9999 }}>
+          {msg}
+        </div>
+      )}
+
+      <div style={{ maxWidth: "1200px", margin: "0 auto", padding: mobile ? "24px 16px" : "32px 48px" }}>
+        {loading ? (
+          <div style={{ textAlign: "center", padding: "80px", color: T.textMuted }}>Loading…</div>
+        ) : (
+
+          /* ── OVERVIEW ── */
+          tab === "overview" && stats && (
+            <div>
+              <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr 1fr" : "repeat(5, 1fr)", gap: "16px", marginBottom: "32px" }}>
+                {[
+                  { label: "Total Users",    value: fmt(stats.totalUsers),    icon: "👥", sub: "registered accounts" },
+                  { label: "Total Sellers",  value: fmt(stats.totalSellers),  icon: "🏪", sub: "active shops" },
+                  { label: "Total Products", value: fmt(stats.totalProducts), icon: "📦", sub: "in catalogue" },
+                  { label: "Total Orders",   value: fmt(stats.totalOrders),   icon: "🛒", sub: `${stats.pendingOrders} pending` },
+                  { label: "Revenue",        value: fmtMoney(stats.totalRevenue), icon: "💰", sub: `${stats.deliveredOrders} delivered` },
+                ].map(card => (
+                  <div key={card.label} style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: "4px", padding: "20px 16px" }}>
+                    <div style={{ fontSize: "24px", marginBottom: "8px" }}>{card.icon}</div>
+                    <div style={{ fontSize: "22px", fontWeight: 700, color: T.gold, fontFamily: SERIF }}>{card.value}</div>
+                    <div style={{ fontSize: "12px", color: T.text, fontWeight: 600, marginTop: "4px" }}>{card.label}</div>
+                    <div style={{ fontSize: "11px", color: T.textMuted, marginTop: "2px" }}>{card.sub}</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: "4px", padding: "20px" }}>
+                <div style={{ fontSize: "13px", fontWeight: 600, color: T.text, marginBottom: "16px" }}>Order Breakdown</div>
+                {[
+                  { label: "Pending",   count: stats.pendingOrders,   color: T.gold },
+                  { label: "Delivered", count: stats.deliveredOrders, color: T.green },
+                  { label: "Cancelled", count: stats.cancelledOrders, color: T.red },
+                ].map(row => (
+                  <div key={row.label} style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
+                    <div style={{ width: "80px", fontSize: "12px", color: T.textMuted }}>{row.label}</div>
+                    <div style={{ flex: 1, background: T.surface2, borderRadius: "2px", height: "8px", overflow: "hidden" }}>
+                      <div style={{ width: `${stats.totalOrders ? (row.count / stats.totalOrders) * 100 : 0}%`, height: "100%", background: row.color, borderRadius: "2px" }} />
+                    </div>
+                    <div style={{ width: "40px", textAlign: "right", fontSize: "12px", color: row.color, fontWeight: 600 }}>{fmt(row.count)}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )
+        )}
+
+        {/* ── USERS ── */}
+        {!loading && tab === "users" && (
+          <div>
+            <div style={{ fontSize: "13px", color: T.textMuted, marginBottom: "16px" }}>{users.length} registered accounts</div>
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", background: T.surface, border: `1px solid ${T.border}`, borderRadius: "4px", overflow: "hidden" }}>
+                <thead><tr><Th>Name</Th><Th>Email</Th><Th>Role</Th><Th>Phone</Th><Th>Joined</Th><Th>Action</Th></tr></thead>
+                <tbody>
+                  {users.map(u => (
+                    <tr key={u.id}>
+                      <Td><span style={{ fontWeight: 600 }}>{u.name}</span></Td>
+                      <Td style={{ color: T.textMuted }}>{u.email}</Td>
+                      <Td>
+                        <span style={{ fontSize: "11px", padding: "2px 8px", borderRadius: "20px", background: u.role === "ADMIN" ? T.goldDim : T.surface2, color: u.role === "ADMIN" ? T.gold : T.textMuted, fontWeight: 600 }}>
+                          {u.role}
+                        </span>
+                      </Td>
+                      <Td style={{ color: T.textMuted }}>{u.phone || "—"}</Td>
+                      <Td style={{ color: T.textMuted }}>{fmtDate(u.createdAt)}</Td>
+                      <Td>
+                        {u.role !== "ADMIN" && (
+                          <button onClick={() => deleteUser(u.id)}
+                            style={{ fontSize: "11px", padding: "4px 10px", background: "transparent", border: `1px solid ${T.red}`, color: T.red, borderRadius: "2px", cursor: "pointer" }}>
+                            Remove
+                          </button>
+                        )}
+                      </Td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* ── SELLERS ── */}
+        {!loading && tab === "sellers" && (
+          <div>
+            <div style={{ fontSize: "13px", color: T.textMuted, marginBottom: "16px" }}>{sellers.length} sellers registered</div>
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", background: T.surface, border: `1px solid ${T.border}`, borderRadius: "4px", overflow: "hidden" }}>
+                <thead><tr><Th>Shop</Th><Th>Owner</Th><Th>Type</Th><Th>GST</Th><Th>Status</Th><Th>Joined</Th><Th>Actions</Th></tr></thead>
+                <tbody>
+                  {sellers.map(s => (
+                    <tr key={s.id}>
+                      <Td><span style={{ fontWeight: 600, color: T.gold }}>{s.shopName}</span></Td>
+                      <Td>
+                        <div style={{ fontSize: "13px" }}>{s.userName}</div>
+                        <div style={{ fontSize: "11px", color: T.textMuted }}>{s.userEmail}</div>
+                      </Td>
+                      <Td style={{ color: T.textMuted, fontSize: "12px" }}>{s.businessType || "—"}</Td>
+                      <Td style={{ color: T.textMuted, fontSize: "12px" }}>{s.gstNumber || "—"}</Td>
+                      <Td>
+                        <span style={{ fontSize: "11px", padding: "2px 8px", borderRadius: "20px", background: "transparent", border: `1px solid ${statusColor(s.status)}`, color: statusColor(s.status), fontWeight: 600 }}>
+                          {s.status}
+                        </span>
+                      </Td>
+                      <Td style={{ color: T.textMuted }}>{fmtDate(s.createdAt)}</Td>
+                      <Td>
+                        <div style={{ display: "flex", gap: "6px" }}>
+                          {s.status !== "ACTIVE" && (
+                            <button onClick={() => updateSeller(s.id, "ACTIVE")}
+                              style={{ fontSize: "11px", padding: "4px 8px", background: "transparent", border: `1px solid ${T.green}`, color: T.green, borderRadius: "2px", cursor: "pointer" }}>
+                              Approve
+                            </button>
+                          )}
+                          {s.status !== "SUSPENDED" && (
+                            <button onClick={() => updateSeller(s.id, "SUSPENDED")}
+                              style={{ fontSize: "11px", padding: "4px 8px", background: "transparent", border: `1px solid ${T.red}`, color: T.red, borderRadius: "2px", cursor: "pointer" }}>
+                              Suspend
+                            </button>
+                          )}
+                        </div>
+                      </Td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* ── ORDERS ── */}
+        {!loading && tab === "orders" && (
+          <div>
+            <div style={{ fontSize: "13px", color: T.textMuted, marginBottom: "16px" }}>{orders.length} total orders</div>
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", background: T.surface, border: `1px solid ${T.border}`, borderRadius: "4px", overflow: "hidden" }}>
+                <thead><tr><Th>#</Th><Th>Buyer</Th><Th>Items</Th><Th>Total</Th><Th>Status</Th><Th>Date</Th><Th>Update</Th></tr></thead>
+                <tbody>
+                  {orders.map(o => (
+                    <tr key={o.orderId}>
+                      <Td style={{ color: T.textMuted, fontSize: "12px" }}>#{o.orderId}</Td>
+                      <Td>
+                        <div style={{ fontSize: "13px" }}>{o.buyerName || "—"}</div>
+                        <div style={{ fontSize: "11px", color: T.textMuted }}>{o.buyerEmail || ""}</div>
+                      </Td>
+                      <Td style={{ color: T.textMuted }}>{o.items?.length || 0} item{o.items?.length !== 1 ? "s" : ""}</Td>
+                      <Td style={{ color: T.gold, fontWeight: 600 }}>{fmtMoney(o.totalPrice)}</Td>
+                      <Td>
+                        <span style={{ fontSize: "11px", padding: "2px 8px", borderRadius: "20px", background: "transparent", border: `1px solid ${orderColor(o.status)}`, color: orderColor(o.status), fontWeight: 600 }}>
+                          {o.status}
+                        </span>
+                      </Td>
+                      <Td style={{ color: T.textMuted }}>{fmtDate(o.createdAt)}</Td>
+                      <Td>
+                        <select
+                          value={o.status}
+                          onChange={e => updateOrder(o.orderId, e.target.value)}
+                          style={{ fontSize: "11px", padding: "4px 6px", background: T.surface2, border: `1px solid ${T.border}`, color: T.text, borderRadius: "2px", cursor: "pointer" }}>
+                          {["PENDING","PROCESSING","SHIPPED","DELIVERED","CANCELLED"].map(s => (
+                            <option key={s} value={s}>{s}</option>
+                          ))}
+                        </select>
+                      </Td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 // ── App ───────────────────────────────────────────────────────────────────────
 export default function App() {
   const [page, setPage]                   = useState("home");
@@ -1271,8 +1559,8 @@ export default function App() {
 
   const handleLogin = data => {
     localStorage.setItem("token", data.token);
-    localStorage.setItem("user", JSON.stringify({ name: data.name, email: data.email }));
-    setUser({ name: data.name, email: data.email });
+    localStorage.setItem("user", JSON.stringify({ name: data.name, email: data.email, role: data.role }));
+    setUser({ name: data.name, email: data.email, role: data.role });
     fetchCart();
     navigate("home");
   };
@@ -1362,6 +1650,7 @@ export default function App() {
       case "login":    return <LoginPage onLogin={handleLogin} onNavigate={navigate} />;
       case "account":  return <AccountPage user={user} onNavigate={navigate} defaultTab={navParam} />;
       case "orders":   return <OrdersPage user={user} onNavigate={navigate} />;
+      case "admin":    return user?.role === "ADMIN" ? <AdminPage onNavigate={navigate} /> : null;
       default:         return null;
     }
   };

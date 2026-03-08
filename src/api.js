@@ -49,3 +49,13 @@ export const updateSellerProduct= (id, data) => API.put(`/seller/products/${id}`
 export const deleteSellerProduct= (id)     => API.delete(`/seller/products/${id}`);
 export const createOrder   = (data) => API.post("/orders", data);
 export const getOrders     = ()     => API.get("/orders");
+// ─── ADMIN ────────────────────────────────────────────────────────────────────
+export const adminGetStats          = ()           => API.get("/admin/dashboard");
+export const adminGetUsers          = ()           => API.get("/admin/users");
+export const adminDeleteUser        = (id)         => API.delete(`/admin/users/${id}`);
+export const adminGetSellers        = ()           => API.get("/admin/sellers");
+export const adminUpdateSellerStatus= (id, status) => API.put(`/admin/sellers/${id}/status?status=${status}`);
+export const adminGetOrders         = ()           => API.get("/admin/orders");
+export const adminUpdateOrderStatus = (id, status) => API.put(`/admin/orders/${id}/status?status=${status}`);
+export const adminGetProducts       = ()           => API.get("/admin/products");
+export const adminDeleteProduct     = (id)         => API.delete(`/admin/products/${id}`);
