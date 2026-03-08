@@ -827,7 +827,12 @@ const AccountPage = ({ user, onNavigate, defaultTab }) => {
   };
 
   const submitProduct = async () => {
-    const data = { ...productForm, price: parseFloat(productForm.price), stock: parseInt(productForm.stock) };
+    const price = parseFloat(productForm.price);
+    const stock = parseInt(productForm.stock);
+    if (!productForm.name?.trim()) return flash("Product name is required", true);
+    if (isNaN(price) || price <= 0)  return flash("Enter a valid price", true);
+    if (isNaN(stock) || stock < 0)   return flash("Enter a valid stock quantity", true);
+    const data = { ...productForm, price, stock };
     try {
       if (editingProduct) {
         const r = await api.updateSellerProduct(editingProduct.id, data);
@@ -840,7 +845,7 @@ const AccountPage = ({ user, onNavigate, defaultTab }) => {
       }
       setShowAddProduct(false); setEditingProduct(null);
       setProductForm({ name:"", description:"", price:"", stock:"", category:"", brand:"", imageUrl:"" });
-    } catch { flash("Failed to save product", true); }
+    } catch(e) { flash(e.response?.data?.message || e.message || "Failed to save product", true); }
   };
 
   const deleteSellerProduct = async (id) => {
