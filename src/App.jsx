@@ -398,7 +398,7 @@ const CartPage = ({ cart, onRemove, onUpdateQty, onNavigate }) => {
             <h1 style={{ fontSize: "24px", fontWeight: 400, margin: "0 0 4px", fontFamily: "Georgia, serif" }}>Shopping Cart</h1>
             <hr style={{ border: "none", borderTop: "1px solid #e3e6e6", margin: "12px 0" }} />
             {cart.map(item => (
-              <div key={item.id} style={{ display: "flex", gap: "16px", padding: "16px 0", borderBottom: "1px solid #e3e6e6", flexWrap: "wrap" }}>
+              <div key={item.cartItemId} style={{ display: "flex", gap: "16px", padding: "16px 0", borderBottom: "1px solid #e3e6e6", flexWrap: "wrap" }}>
                 <div style={{ fontSize: "52px", background: "#f8f8f8", borderRadius: "8px", padding: "12px", width: "80px", textAlign: "center", flexShrink: 0 }}>
                   {getIcon(item.category)}
                 </div>
@@ -756,7 +756,7 @@ export default function App() {
   };
 
   const removeFromCart = async (id,cartItemId) => {
-    setCart(prev => prev.filter(i => i.id !== id));
+    setCart(prev => prev.filter(i => i.cartItemId !== cartItemId));
     if (localStorage.getItem("token")) {
       try {
         await api.removeFromCart(id);
