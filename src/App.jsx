@@ -988,7 +988,7 @@ const AccountPage = ({ user, onNavigate, defaultTab }) => {
   const [profile, setProfile]   = useState({ name: user?.name || "", phone: "" });
   const [passwords, setPasswords] = useState({ current: "", newPass: "", confirm: "" });
   const [addresses, setAddresses] = useState([]);
-  const [newAddr, setNewAddr]   = useState({ name: "", street: "", city: "", state: "", pin: "", phone: "" });
+  const [newAddr, setNewAddr]   = useState({ fullName: "", street: "", city: "", state: "", pinCode: "", phone: "" });
   const [showAddrForm, setShowAddrForm] = useState(false);
   const [msg, setMsg]           = useState("");
   const [err, setErr]           = useState("");
@@ -1012,7 +1012,7 @@ const AccountPage = ({ user, onNavigate, defaultTab }) => {
   };
 
   const addAddress = async () => {
-    try { const r = await api.addAddress(newAddr); setAddresses(a => [...a, r.data]); setNewAddr({ name: "", street: "", city: "", state: "", pin: "", phone: "" }); setShowAddrForm(false); flash("Address added"); }
+    try { const r = await api.addAddress(newAddr); setAddresses(a => [...a, r.data]); setNewAddr({ fullName: "", street: "", city: "", state: "", pinCode: "", phone: "" }); setShowAddrForm(false); flash("Address added"); }
     catch { flash("Failed to add address", true); }
   };
 
@@ -1184,10 +1184,10 @@ const AccountPage = ({ user, onNavigate, defaultTab }) => {
             {showAddrForm && (
               <div style={{ background: T.surface2, border: `1px solid ${T.border}`, padding: "24px", borderRadius: "2px", marginBottom: "20px" }}>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-                  {[["Full Name","name","text"],["Phone","phone","tel"],["Street","street","text"],["City","city","text"],["State","state","text"],["PIN","pin","text"]].map(([label, key, type]) => (
+                  {[["Full Name","fullName","text"],["Phone","phone","tel"],["Street","street","text"],["City","city","text"],["State","state","text"],["PIN","pinCode","text"]].map(([label, key, type]) => (
                     <div key={key} style={{ gridColumn: key === "street" ? "1/-1" : "auto" }}>
                       <label style={labelStyle}>{label.toUpperCase()}</label>
-                      <input value={newAddr[key]} onChange={e => setNewAddr(a => ({ ...a, [key]: key === "phone" ? e.target.value.replace(/\D/g,"").slice(0,10) : key === "pin" ? e.target.value.replace(/\D/g,"").slice(0,6) : e.target.value }))} type={type} style={inputStyle} />
+                      <input value={newAddr[key]} onChange={e => setNewAddr(a => ({ ...a, [key]: key === "phone" ? e.target.value.replace(/\D/g,"").slice(0,10) : key === "pinCode" ? e.target.value.replace(/\D/g,"").slice(0,6) : e.target.value }))} type={type} style={inputStyle} />
                     </div>
                   ))}
                 </div>
@@ -1200,8 +1200,8 @@ const AccountPage = ({ user, onNavigate, defaultTab }) => {
             {addresses.length === 0 ? <div style={{ color: T.textMuted, fontSize: "13px" }}>No addresses saved yet.</div>
               : addresses.map(a => (
                 <div key={a.id} style={{ padding: "16px", background: T.surface2, border: `1px solid ${T.borderFaint}`, borderRadius: "2px", marginBottom: "10px" }}>
-                  <div style={{ fontSize: "14px", color: T.text, marginBottom: "4px" }}>{a.name}</div>
-                  <div style={{ fontSize: "12px", color: T.textMuted }}>{a.street}, {a.city}, {a.state} - {a.pin}</div>
+                  <div style={{ fontSize: "14px", color: T.text, marginBottom: "4px" }}>{a.fullName}</div>
+                  <div style={{ fontSize: "12px", color: T.textMuted }}>{a.street}, {a.city}, {a.state} - {a.pinCode}</div>
                   <div style={{ fontSize: "12px", color: T.textMuted }}>{a.phone}</div>
                   <button onClick={() => api.deleteAddress(a.id).then(() => setAddresses(ads => ads.filter(x => x.id !== a.id)))}
                     style={{ background: "none", border: "none", color: T.red, fontSize: "12px", cursor: "pointer", marginTop: "8px", padding: 0 }}>Remove</button>
@@ -1771,6 +1771,17 @@ export default function App() {
     window.addEventListener("popstate", handlePop);
     return () => window.removeEventListener("popstate", handlePop);
   }, []); // run once on mount
+
+  // Auto-logout when token expires (403/401 from API)
+  useEffect(() => {
+    const onExpired = () => {
+      setUser(null); setCart([]);
+      showToast("Session expired — please sign in again");
+      navigate("login");
+    };
+    window.addEventListener("session-expired", onExpired);
+    return () => window.removeEventListener("session-expired", onExpired);
+  }, []);
 
   const handleLogin = data => {
     localStorage.setItem("token", data.token);
