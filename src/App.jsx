@@ -34,14 +34,46 @@ const Spinner = () => (
   </div>
 );
 
-const Navbar = ({ cartCount, onNavigate, searchQuery, onSearch, user, onLogout }) => {
+const Navbar = ({ cartCount, onNavigate, searchQuery, onSearch, user, onLogout, products = [] }) => {
   const [query, setQuery] = useState(searchQuery || "");
   useEffect(() => { setQuery(searchQuery || ""); }, [searchQuery]);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
+  const suggestions = query.trim().length > 0
+    ? [...new Map(
+        products
+          .filter(p => p.name?.toLowerCase().includes(query.toLowerCase()) || p.brand?.toLowerCase().includes(query.toLowerCase()))
+          .flatMap(p => [p.name, p.brand].filter(Boolean))
+          .filter(s => s.toLowerCase().includes(query.toLowerCase()))
+          .map(s => [s.toLowerCase(), s])
+      ).values()].slice(0, 8)
+    : [];
+
   const handleSearch = (e) => {
     e.preventDefault();
+    setShowSuggestions(false);
     onSearch(query);
     onNavigate("products");
+  };
+
+  const pickSuggestion = (s) => {
+    setQuery(s);
+    setShowSuggestions(false);
+    onSearch(s);
+    onNavigate("products");
+  };
+
+  const highlightMatch = (text, q) => {
+    const idx = text.toLowerCase().indexOf(q.toLowerCase());
+    if (idx === -1) return <span>{text}</span>;
+    return (
+      <span>
+        {text.slice(0, idx)}
+        <span style={{ color: "#131921", fontWeight: 700 }}>{text.slice(idx, idx + q.length)}</span>
+        <span style={{ color: "#888" }}>{text.slice(idx + q.length)}</span>
+      </span>
+    );
   };
   return (
     <header>
@@ -59,13 +91,32 @@ const Navbar = ({ cartCount, onNavigate, searchQuery, onSearch, user, onLogout }
           <div style={{ color: "#ccc" }}>Deliver to</div>
           <div style={{ fontWeight: 700, fontSize: "13px" }}>📍 India</div>
         </div>
-        <form onSubmit={handleSearch} style={{ flex: 1, display: "flex", borderRadius: "4px", overflow: "hidden", height: "40px" }}>
+        <form onSubmit={handleSearch} style={{ flex: 1, display: "flex", borderRadius: "4px", overflow: "hidden", height: "40px", position: "relative" }}>
           <select style={{ background: "#e3e6e6", border: "none", padding: "0 8px", fontSize: "12px", color: "#333", cursor: "pointer", outline: "none", borderRight: "1px solid #ccc" }}>
             <option>All</option>
             {CATEGORIES.map(c => <option key={c.id}>{c.name}</option>)}
           </select>
-          <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search Amazon"
-            style={{ flex: 1, border: "none", padding: "0 12px", fontSize: "14px", outline: "none" }} />
+          <div style={{ flex: 1, position: "relative" }}>
+            <input value={query}
+              onChange={e => { setQuery(e.target.value); setShowSuggestions(true); }}
+              onFocus={() => setShowSuggestions(true)}
+              onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+              placeholder="Search Amazon"
+              style={{ width: "100%", height: "100%", border: "none", padding: "0 12px", fontSize: "14px", outline: "none", boxSizing: "border-box" }} />
+            {showSuggestions && suggestions.length > 0 && (
+              <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "white", border: "1px solid #ccc", borderTop: "none", borderRadius: "0 0 4px 4px", boxShadow: "0 4px 12px rgba(0,0,0,0.15)", zIndex: 9999 }}>
+                {suggestions.map((s, i) => (
+                  <div key={i} onMouseDown={() => pickSuggestion(s)}
+                    style={{ padding: "9px 14px", fontSize: "14px", cursor: "pointer", display: "flex", alignItems: "center", gap: "8px", color: "#131921" }}
+                    onMouseEnter={e => e.currentTarget.style.background = "#f0f2f2"}
+                    onMouseLeave={e => e.currentTarget.style.background = "white"}>
+                    <span style={{ color: "#aaa", fontSize: "12px" }}>🔍</span>
+                    {highlightMatch(s, query)}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
           <button type="submit" style={{ background: "#ff9900", border: "none", padding: "0 16px", cursor: "pointer", fontSize: "18px" }}>🔍</button>
         </form>
         <div style={{ position: "relative" }}
@@ -1047,6 +1098,7 @@ export default function App() {
           onSearch={q => { setSearchQuery(q); navigate("products"); }}
           user={user}
           onLogout={handleLogout}
+          products={products}
         />
       )}
       {renderPage()}
