@@ -15,6 +15,7 @@ export const register = (data) => API.post("/auth/register", data);
 export const login = (data) => API.post("/auth/login", data);
 // ─── PRODUCTS ─────────────────────────────────────────────────────────────────
 export const getProducts = (page = 0, size = 40) => API.get(`/products?page=${page}&size=${size}`);
+export const searchProducts = (q) => API.get(`/products?search=${encodeURIComponent(q)}`);
 export const getProductById = (id) => API.get(`/products/${id}`);
 // ─── CART ─────────────────────────────────────────────────────────────────────
 export const getCart = () => API.get("/cart");

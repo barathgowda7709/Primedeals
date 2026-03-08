@@ -372,10 +372,7 @@ const ProductsPage = ({ onAddToCart, onProductClick, filterCategory, searchQuery
 
   let filtered = products;
   if (selectedCat !== "All") filtered = filtered.filter(p => p.category === selectedCat);
-  if (searchQuery) filtered = filtered.filter(p =>
-    p.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    p.category?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    p.brand?.toLowerCase().includes(searchQuery.toLowerCase()));
+  // search results come pre-filtered from backend
   if (sortBy === "low")   filtered = [...filtered].sort((a, b) => a.price - b.price);
   if (sortBy === "high")  filtered = [...filtered].sort((a, b) => b.price - a.price);
   if (sortBy === "rated") filtered = [...filtered].sort((a, b) => b.rating - a.rating);
@@ -1130,6 +1127,8 @@ export default function App() {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [filterCategory, setFilterCategory]   = useState(null);
   const [searchQuery, setSearchQuery]     = useState("");
+  const [searchResults, setSearchResults]   = useState(null); // null = not searching
+  const [searchLoading, setSearchLoading]   = useState(false);
   const [products, setProducts]           = useState([]);
   const [productsLoading, setProductsLoading] = useState(true);
   const [productsPage, setProductsPage]   = useState(0);
@@ -1215,7 +1214,7 @@ export default function App() {
     if (target === "products" && extra && CATEGORIES.some(c => c.name === extra)) setFilterCategory(extra);
     else if (target !== "products") setFilterCategory(null);
     if (target === "account") setNavParam(extra || null);
-    if (target === "home") { setSearchQuery(""); }
+    if (target === "home") { setSearchQuery(""); setSearchResults(null); }
     setPage(target);
     window.scrollTo(0, 0);
   };
@@ -1228,7 +1227,7 @@ export default function App() {
     switch (page) {
       case "home":     return <HomePage onNavigate={navigate} onAddToCart={p => { try { requireAuth(); addToCart(p); showToast(`${p.name} added to cart`); } catch {} }} onProductClick={productClick} products={products} cart={cart} onRemoveFromCart={removeFromCart} />;
       case "product":  return selectedProduct ? <ProductDetailPage product={selectedProduct} onAddToCart={p => { try { requireAuth(); addToCart(p); showToast(`${p.name} added to cart`); } catch {} }} onNavigate={navigate} /> : null;
-      case "products": return <ProductsPage onAddToCart={p => { try { requireAuth(); addToCart(p); showToast(`${p.name} added to cart`); } catch {} }} onProductClick={productClick} filterCategory={filterCategory} searchQuery={searchQuery} products={products} loading={productsLoading} cart={cart} onRemoveFromCart={removeFromCart} onLoadMore={loadMoreProducts} hasMore={hasMore} />;
+      case "products": return <ProductsPage onAddToCart={p => { try { requireAuth(); addToCart(p); showToast(`${p.name} added to cart`); } catch {} }} onProductClick={productClick} filterCategory={filterCategory} searchQuery={searchQuery} products={searchResults !== null ? searchResults : products} loading={searchLoading || productsLoading} cart={cart} onRemoveFromCart={removeFromCart} onLoadMore={loadMoreProducts} hasMore={searchResults !== null ? false : hasMore} />;
       case "cart":     return <CartPage cart={cart} onRemove={removeFromCart} onUpdateQty={updateQty} onNavigate={navigate} />;
       case "checkout": return <CheckoutPage cart={cart} user={user} onNavigate={navigate} onPlaceOrder={placeOrder} />;
       case "login":    return <LoginPage onLogin={handleLogin} onNavigate={navigate} />;
@@ -1242,7 +1241,20 @@ export default function App() {
     <div style={{ fontFamily: SANS, minHeight: "100vh", background: T.bg, color: T.text }}>
       {page !== "login" && (
         <Navbar cartCount={cartCount} onNavigate={navigate} searchQuery={searchQuery}
-          onSearch={q => { setSearchQuery(q); navigate("products"); }} user={user} onLogout={handleLogout} products={products} />
+          onSearch={q => {
+            setSearchQuery(q);
+            if (q.trim()) {
+              setSearchLoading(true);
+              setSearchResults(null);
+              api.searchProducts(q)
+                .then(r => setSearchResults(r.data))
+                .catch(() => setSearchResults([]))
+                .finally(() => setSearchLoading(false));
+            } else {
+              setSearchResults(null);
+            }
+            navigate("products");
+          }} user={user} onLogout={handleLogout} products={products} />
       )}
       <main>{renderPage()}</main>
       <Toast msg={toast} />
