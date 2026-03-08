@@ -326,11 +326,11 @@ const HomePage = ({ onNavigate, onAddToCart, onProductClick, products, cart, onR
               <div style={{ fontSize: "11px", color: T.textMuted, letterSpacing: "1px", textTransform: "uppercase" }}>{label}</div>
             </div>
           ))}
-        </div>
+        </div>}
       </div>
 
       {/* Categories */}
-      <div style={{ padding: "80px 60px" }}>
+      <div style={{ padding: mobile ? "40px 16px" : "80px 60px" }}>
         <div style={{ textAlign: "center", marginBottom: "48px" }}>
           <div style={{ fontSize: "11px", color: T.gold, letterSpacing: "3px", marginBottom: "12px" }}>BROWSE BY</div>
           <h2 style={{ fontFamily: SERIF, fontSize: "36px", color: T.text }}>Collections</h2>
@@ -454,7 +454,7 @@ const ProductsPage = ({ onAddToCart, onProductClick, filterCategory, searchQuery
           {[["featured","Featured"],["low","Price: Low"],["high","Price: High"],["rated","Top Rated"]].map(([val, label]) => (
             <div key={val} onClick={() => setSortBy(val)}
               style={{ padding: "9px 0 9px 12px", fontSize: "13px", cursor: "pointer", color: sortBy === val ? T.gold : T.textMuted, borderLeft: `2px solid ${sortBy === val ? T.gold : "transparent"}`, marginBottom: "2px", transition: "all 0.2s" }}>{label}</div>
-          ))}</>
+          ))}</>}
         </div>
 
         {/* Grid */}
