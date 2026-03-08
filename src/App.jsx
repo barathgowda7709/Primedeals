@@ -705,6 +705,7 @@ const AccountPage = ({ user, onNavigate }) => {
   const [addrForm, setAddrForm] = useState({ street: "", city: "", state: "", pinCode: "", phoneNumber: "", name: "" });
   const [showAddrForm, setShowAddrForm] = useState(false);
   const [addrMsg, setAddrMsg] = useState("");
+  const [addrErr, setAddrErr] = useState("");
 
   useEffect(() => {
     api.getProfile().then(r => setProfile({ name: r.data.name, phone: r.data.phone || "" })).catch(() => {});
@@ -730,10 +731,11 @@ const AccountPage = ({ user, onNavigate }) => {
   };
 
   const addAddr = async () => {
+    if (!/^[0-9]{10}$/.test(addrForm.phone)) { setAddrMsg("Phone must be exactly 10 digits."); return; }
     try {
       const res = await api.addAddress(addrForm);
       setAddresses(prev => [...prev, res.data]);
-      setAddrForm({ street: "", city: "", state: "", pinCode: "", phoneNumber: "", name: "" });
+      setAddrForm({ street: "", city: "", state: "", pinCode: "", phone: "", fullName: "" });
       setShowAddrForm(false);
       setAddrMsg("✓ Address added!");
       setTimeout(() => setAddrMsg(""), 3000);
@@ -853,8 +855,13 @@ const AccountPage = ({ user, onNavigate }) => {
                 {showAddrForm && (
                   <div style={{ border: "1px solid #e3e6e6", borderRadius: "8px", padding: "20px", marginBottom: "20px" }}>
                     <h3 style={{ fontSize: "15px", marginBottom: "14px" }}>New Address</h3>
-                    {[["Full Name", "name"], ["Street / Area", "street"], ["City", "city"], ["State", "state"], ["PIN Code", "pinCode"], ["Phone Number", "phoneNumber"]].map(([lbl, key]) => (
-                      <input key={key} placeholder={lbl} value={addrForm[key]} onChange={e => setAddrForm({ ...addrForm, [key]: e.target.value })} style={inputStyle} />
+                    {[["Full Name", "fullName"], ["Street / Area", "street"], ["City", "city"], ["State", "state"], ["PIN Code", "pinCode"], ["Phone (10 digits)", "phone"]].map(([lbl, key]) => (
+                      <input key={key} placeholder={lbl} value={addrForm[key]}
+                        inputMode={key === "phone" || key === "pinCode" ? "numeric" : "text"}
+                        onChange={e => {
+                          const val = (key === "phone" || key === "pinCode") ? e.target.value.replace(/\D/g, "") : e.target.value;
+                          setAddrForm({ ...addrForm, [key]: val });
+                        }} style={inputStyle} />
                     ))}
                     <div style={{ display: "flex", gap: "10px" }}>
                       <button style={btnStyle} onClick={addAddr}>Save Address</button>
@@ -870,9 +877,9 @@ const AccountPage = ({ user, onNavigate }) => {
                 )}
                 {addresses.map(a => (
                   <div key={a.id} style={{ border: "1px solid #e3e6e6", borderRadius: "8px", padding: "16px", marginBottom: "12px", position: "relative" }}>
-                    <div style={{ fontWeight: 700 }}>{a.name}</div>
+                    <div style={{ fontWeight: 700 }}>{a.fullName}</div>
                     <div style={{ fontSize: "13px", color: "#555", marginTop: "4px" }}>{a.street}, {a.city}, {a.state} - {a.pinCode}</div>
-                    <div style={{ fontSize: "13px", color: "#555" }}>Phone: {a.phoneNumber}</div>
+                    <div style={{ fontSize: "13px", color: "#555" }}>Phone: {a.phone}</div>
                     <button onClick={() => removeAddr(a.id)} style={{ marginTop: "10px", background: "none", border: "1px solid #c45500", color: "#c45500", padding: "4px 14px", borderRadius: "12px", fontSize: "12px", cursor: "pointer" }}>Remove</button>
                   </div>
                 ))}
