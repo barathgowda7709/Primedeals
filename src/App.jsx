@@ -78,6 +78,7 @@ const Navbar = ({ cartCount, onNavigate, searchQuery, onSearch, user, onLogout, 
   const [mobileQuery, setMobileQuery]   = useState("");
   const [showPin, setShowPin]           = useState(false);
   const [pinInput, setPinInput]         = useState("");
+  const [savedAddresses, setSavedAddresses] = useState([]);
   const mobile                          = useMobile();
 
   useEffect(() => { setQuery(searchQuery || ""); }, [searchQuery]);
@@ -149,7 +150,14 @@ const Navbar = ({ cartCount, onNavigate, searchQuery, onSearch, user, onLogout, 
       {/* Pincode / Deliver to widget */}
       <div style={{ flex: 1, display: "flex", alignItems: "center" }}>
         <div style={{ position: "relative" }}>
-          <div onClick={() => { setShowPin(v => !v); setPinInput(pincode || ""); }}
+          <div onClick={() => {
+            const next = !showPin;
+            setShowPin(next);
+            setPinInput(pincode || "");
+            if (next && user) {
+              api.getAddresses().then(r => setSavedAddresses(r.data || [])).catch(() => {});
+            }
+          }}
             style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: "5px", padding: "5px 10px", borderRadius: "2px", border: `1px solid ${showPin ? T.gold : T.borderFaint}`, background: T.surface2, transition: "border-color 0.2s" }}>
             <span style={{ fontSize: "14px" }}>📍</span>
             <div>
@@ -164,8 +172,31 @@ const Navbar = ({ cartCount, onNavigate, searchQuery, onSearch, user, onLogout, 
           {showPin && (
             <>
               <div onClick={() => setShowPin(false)} style={{ position: "fixed", inset: 0, zIndex: 9988 }} />
-              <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, background: T.surface, border: `1px solid ${T.border}`, borderRadius: "4px", padding: "14px", zIndex: 9989, width: "220px", boxShadow: "0 8px 32px rgba(0,0,0,0.5)" }}>
-                <div style={{ fontSize: "12px", color: T.textMuted, marginBottom: "10px" }}>Enter your pincode to see delivery dates</div>
+              <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, background: T.surface, border: `1px solid ${T.border}`, borderRadius: "4px", padding: "14px", zIndex: 9989, width: "260px", boxShadow: "0 8px 32px rgba(0,0,0,0.5)" }}>
+                {savedAddresses.length > 0 && (
+                  <div style={{ marginBottom: "12px" }}>
+                    <div style={{ fontSize: "9px", color: T.gold, letterSpacing: "1px", marginBottom: "6px" }}>SAVED ADDRESSES</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                      {savedAddresses.map(addr => (
+                        <div key={addr.id} onClick={() => { onPincodeChange(addr.pinCode); setShowPin(false); }}
+                          style={{ display: "flex", alignItems: "center", gap: "8px", padding: "8px 10px", borderRadius: "2px", cursor: "pointer", background: pincode === addr.pinCode ? T.goldDim : T.surface2, border: `1px solid ${pincode === addr.pinCode ? T.gold : T.borderFaint}`, transition: "background 0.15s" }}
+                          onMouseEnter={e => e.currentTarget.style.background = T.goldDim}
+                          onMouseLeave={e => e.currentTarget.style.background = pincode === addr.pinCode ? T.goldDim : T.surface2}>
+                          <span style={{ fontSize: "13px" }}>📍</span>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: "12px", color: T.text, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{addr.fullName}</div>
+                            <div style={{ fontSize: "11px", color: T.textMuted }}>{addr.city}, {addr.state} — <span style={{ color: T.gold, fontWeight: 600 }}>{addr.pinCode}</span></div>
+                          </div>
+                          {addr.isDefault && <span style={{ fontSize: "9px", color: T.gold, border: `1px solid ${T.gold}`, borderRadius: "2px", padding: "1px 4px" }}>DEFAULT</span>}
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{ borderTop: `1px solid ${T.borderFaint}`, margin: "10px 0 10px" }} />
+                  </div>
+                )}
+                <div style={{ fontSize: "12px", color: T.textMuted, marginBottom: "10px" }}>
+                  {savedAddresses.length > 0 ? "Or enter a different pincode" : "Enter your pincode to see delivery dates"}
+                </div>
                 <form onSubmit={e => {
                   e.preventDefault();
                   if (/^\d{6}$/.test(pinInput)) { onPincodeChange(pinInput); setShowPin(false); }
