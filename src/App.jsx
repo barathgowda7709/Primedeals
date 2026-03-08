@@ -85,10 +85,34 @@ const Navbar = ({ cartCount, onNavigate, searchQuery, onSearch, user, onLogout, 
     return () => window.removeEventListener("scroll", fn);
   }, []);
 
-  const suggestions = query.trim().length > 0
-    ? products.filter(p => p.name?.toLowerCase().includes(query.toLowerCase()))
-        .map(p => p.name).filter((v, i, a) => a.indexOf(v) === i).slice(0, 8)
-    : [];
+  const [suggestions, setSuggestions]     = useState([]);
+  const [mobileSugg, setMobileSugg]       = useState([]);
+
+  // Debounced backend autocomplete for desktop search
+  useEffect(() => {
+    if (query.trim().length < 2) { setSuggestions([]); return; }
+    const t = setTimeout(() => {
+      api.searchProducts(query)
+        .then(r => setSuggestions(
+          (r.data || []).map(p => p.name).filter((v, i, a) => a.indexOf(v) === i).slice(0, 8)
+        ))
+        .catch(() => setSuggestions([]));
+    }, 300);
+    return () => clearTimeout(t);
+  }, [query]);
+
+  // Debounced backend autocomplete for mobile search
+  useEffect(() => {
+    if (mobileQuery.trim().length < 2) { setMobileSugg([]); return; }
+    const t = setTimeout(() => {
+      api.searchProducts(mobileQuery)
+        .then(r => setMobileSugg(
+          (r.data || []).map(p => p.name).filter((v, i, a) => a.indexOf(v) === i).slice(0, 6)
+        ))
+        .catch(() => setMobileSugg([]));
+    }, 300);
+    return () => clearTimeout(t);
+  }, [mobileQuery]);
 
   const handleSearch = e => { e.preventDefault(); setShowSugg(false); onSearch(query); onNavigate("products"); };
 
@@ -248,14 +272,14 @@ const Navbar = ({ cartCount, onNavigate, searchQuery, onSearch, user, onLogout, 
 
     {/* Mobile search overlay — slides in below navbar when 🔍 is tapped */}
     {mobile && showMobileSearch && (
-      <div style={{ background: T.surface, borderBottom: `1px solid ${T.border}`, padding: "10px 16px", position: "sticky", top: "56px", zIndex: 999, boxShadow: "0 4px 20px rgba(0,0,0,0.4)" }}>
+      <div style={{ background: T.surface, borderBottom: `1px solid ${T.border}`, position: "sticky", top: "56px", zIndex: 999, boxShadow: "0 4px 20px rgba(0,0,0,0.4)" }}>
         <form
           onSubmit={e => {
             e.preventDefault();
             if (mobileQuery.trim()) { onSearch(mobileQuery); onNavigate("products"); }
-            setShowMobileSearch(false);
+            setMobileSugg([]); setShowMobileSearch(false);
           }}
-          style={{ display: "flex", alignItems: "center", background: T.surface2, border: `1px solid ${T.gold}`, borderRadius: "2px" }}>
+          style={{ display: "flex", alignItems: "center", background: T.surface2, border: `1px solid ${T.gold}`, margin: "10px 16px 0", borderRadius: "2px" }}>
           <input
             autoFocus
             value={mobileQuery}
@@ -263,8 +287,22 @@ const Navbar = ({ cartCount, onNavigate, searchQuery, onSearch, user, onLogout, 
             placeholder="Search products..."
             style={{ flex: 1, background: "transparent", border: "none", outline: "none", padding: "11px 14px", color: T.text, fontSize: "15px", fontFamily: SANS }} />
           <button type="submit" style={{ background: "none", border: "none", padding: "0 12px", cursor: "pointer", color: T.gold, fontSize: "18px", lineHeight: 1 }}>⌕</button>
-          <span onClick={() => setShowMobileSearch(false)} style={{ padding: "0 14px", color: T.textMuted, cursor: "pointer", fontSize: "18px", lineHeight: 1 }}>✕</span>
+          <span onClick={() => { setShowMobileSearch(false); setMobileSugg([]); }} style={{ padding: "0 14px", color: T.textMuted, cursor: "pointer", fontSize: "18px", lineHeight: 1 }}>✕</span>
         </form>
+        {mobileSugg.length > 0 && (
+          <div style={{ padding: "4px 0 8px" }}>
+            {mobileSugg.map((s, i) => (
+              <div key={i}
+                onMouseDown={() => { setMobileQuery(s); setMobileSugg([]); onSearch(s); onNavigate("products"); setShowMobileSearch(false); }}
+                style={{ padding: "10px 16px", fontSize: "14px", cursor: "pointer", borderBottom: i < mobileSugg.length - 1 ? `1px solid ${T.borderFaint}` : "none" }}
+                onMouseEnter={e => e.currentTarget.style.background = T.surface2}
+                onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                {highlightMatch(s, mobileQuery)}
+              </div>
+            ))}
+          </div>
+        )}
+        {!mobileSugg.length && <div style={{ height: "8px" }} />}
       </div>
     )}
     </>
