@@ -163,8 +163,9 @@ const ProductCard = ({ product, onAddToCart, onClick, cartItem, onRemoveFromCart
         <button onClick={(e) => { e.stopPropagation(); onRemoveFromCart(product.id, cartItem.cartItemId); }}
           style={{ flex: 1, background: "#f8f8f8", border: "none", padding: "8px", cursor: "pointer", color: "#c45500", fontSize: "14px", fontWeight: 700 }}>🗑</button>
         <span style={{ flex: 1, textAlign: "center", fontSize: "14px", fontWeight: 700, color: "#0f1111" }}>{cartItem.qty}</span>
-        <button onClick={(e) => { e.stopPropagation(); onAddToCart(product); }}
-          style={{ flex: 1, background: "#ff9900", border: "none", padding: "8px", cursor: "pointer", color: "#131921", fontSize: "18px", fontWeight: 700 }}>+</button>
+        <button onClick={(e) => { e.stopPropagation(); if(cartItem.qty < 5) onAddToCart(product); }}
+          disabled={cartItem.qty >= 5}
+          style={{ flex: 1, background: cartItem.qty >= 5 ? "#ccc" : "#ff9900", border: "none", padding: "8px", cursor: cartItem.qty >= 5 ? "not-allowed" : "pointer", color: "#131921", fontSize: "18px", fontWeight: 700 }}>+</button>
       </div>
     ) : (
       <button onClick={(e) => { e.stopPropagation(); onAddToCart(product); }}
