@@ -36,6 +36,7 @@ const Spinner = () => (
 
 const Navbar = ({ cartCount, onNavigate, searchQuery, onSearch, user, onLogout }) => {
   const [query, setQuery] = useState(searchQuery || "");
+  useEffect(() => { setQuery(searchQuery || ""); }, [searchQuery]);
   const [showDropdown, setShowDropdown] = useState(false);
   const handleSearch = (e) => {
     e.preventDefault();
@@ -952,6 +953,7 @@ export default function App() {
     if (target === "products" && extra) setFilterCategory(extra);
     else if (target !== "products") setFilterCategory(null);
     if (target === "account") setNavParam(extra || null);
+    if (target === "home") setSearchQuery("");
     setPage(target);
     window.scrollTo(0, 0);
   };
