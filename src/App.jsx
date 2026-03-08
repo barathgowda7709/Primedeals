@@ -759,7 +759,7 @@ export default function App() {
     setCart(prev => prev.filter(i => i.cartItemId !== cartItemId));
     if (localStorage.getItem("token")) {
       try {
-        await api.removeFromCart(id);
+        await api.removeFromCart(cartItemId);
       } catch (err) {
         console.error("Remove cart sync failed:", err);
       }
