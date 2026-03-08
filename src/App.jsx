@@ -41,13 +41,11 @@ const Navbar = ({ cartCount, onNavigate, searchQuery, onSearch, user, onLogout, 
   const [showSuggestions, setShowSuggestions] = useState(false);
 
   const suggestions = query.trim().length > 0
-    ? [...new Map(
-        products
-          .filter(p => p.name?.toLowerCase().includes(query.toLowerCase()) || p.brand?.toLowerCase().includes(query.toLowerCase()))
-          .flatMap(p => [p.name, p.brand].filter(Boolean))
-          .filter(s => s.toLowerCase().includes(query.toLowerCase()))
-          .map(s => [s.toLowerCase(), s])
-      ).values()].slice(0, 8)
+    ? products
+        .filter(p => p.name?.toLowerCase().includes(query.toLowerCase()))
+        .map(p => p.name)
+        .filter((v, i, a) => a.indexOf(v) === i)
+        .slice(0, 8)
     : [];
 
   const handleSearch = (e) => {
@@ -66,10 +64,10 @@ const Navbar = ({ cartCount, onNavigate, searchQuery, onSearch, user, onLogout, 
 
   const highlightMatch = (text, q) => {
     const idx = text.toLowerCase().indexOf(q.toLowerCase());
-    if (idx === -1) return <span>{text}</span>;
+    if (idx === -1) return <span style={{ color: "#131921" }}>{text}</span>;
     return (
       <span>
-        {text.slice(0, idx)}
+        <span style={{ color: "#888" }}>{text.slice(0, idx)}</span>
         <span style={{ color: "#131921", fontWeight: 700 }}>{text.slice(idx, idx + q.length)}</span>
         <span style={{ color: "#888" }}>{text.slice(idx + q.length)}</span>
       </span>
