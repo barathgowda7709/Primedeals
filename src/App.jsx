@@ -68,7 +68,7 @@ const Divider = ({ style = {} }) => (
 );
 
 // ── Navbar ────────────────────────────────────────────────────────────────────
-const Navbar = ({ cartCount, onNavigate, searchQuery, onSearch, user, onLogout, products = [] }) => {
+const Navbar = ({ cartCount, onNavigate, searchQuery, onSearch, user, onLogout, products = [], pincode, onPincodeChange }) => {
   const [query, setQuery]               = useState(searchQuery || "");
   const [showAcct, setShowAcct]         = useState(false);
   const [showSugg, setShowSugg]         = useState(false);
@@ -76,6 +76,8 @@ const Navbar = ({ cartCount, onNavigate, searchQuery, onSearch, user, onLogout, 
   const [menuOpen, setMenuOpen]         = useState(false);
   const [showMobileSearch, setShowMobileSearch] = useState(false);
   const [mobileQuery, setMobileQuery]   = useState("");
+  const [showPin, setShowPin]           = useState(false);
+  const [pinInput, setPinInput]         = useState("");
   const mobile                          = useMobile();
 
   useEffect(() => { setQuery(searchQuery || ""); }, [searchQuery]);
@@ -144,18 +146,53 @@ const Navbar = ({ cartCount, onNavigate, searchQuery, onSearch, user, onLogout, 
         <span style={{ fontFamily: SERIF, fontSize: "22px", fontWeight: 400, fontStyle: "italic", color: T.gold }}>Deals</span>
       </div>
 
-      {/* Nav links - desktop only */}
-      {!mobile && <nav style={{ display: "flex", gap: "28px", flex: 1 }}>
-        {[["New Arrivals","products"],["Collections","products"],["Boutique","products"]].map(([label, pg]) => (
-          <span key={label} onClick={() => onNavigate(pg)}
-            style={{ color: T.textMuted, fontSize: "13px", letterSpacing: "0.5px", cursor: "pointer", transition: "color 0.2s" }}
-            onMouseEnter={e => e.currentTarget.style.color = T.gold}
-            onMouseLeave={e => e.currentTarget.style.color = T.textMuted}>{label}</span>
-        ))}
-      </nav>}
+      {/* Pincode / Deliver to widget */}
+      <div style={{ flex: 1, display: "flex", alignItems: "center" }}>
+        <div style={{ position: "relative" }}>
+          <div onClick={() => { setShowPin(v => !v); setPinInput(pincode || ""); }}
+            style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: "5px", padding: "5px 10px", borderRadius: "2px", border: `1px solid ${showPin ? T.gold : T.borderFaint}`, background: T.surface2, transition: "border-color 0.2s" }}>
+            <span style={{ fontSize: "14px" }}>📍</span>
+            <div>
+              <div style={{ fontSize: "9px", color: T.textMuted, letterSpacing: "0.5px", lineHeight: 1 }}>DELIVER TO</div>
+              <div style={{ fontSize: "12px", color: pincode ? T.text : T.textMuted, fontWeight: pincode ? 600 : 400, lineHeight: 1.4 }}>
+                {pincode || "Enter pincode"}
+              </div>
+            </div>
+            <span style={{ fontSize: "10px", color: T.textMuted, marginLeft: "2px" }}>▾</span>
+          </div>
 
-      {/* Spacer on mobile */}
-      {mobile && <div style={{ flex: 1 }} />}
+          {showPin && (
+            <>
+              <div onClick={() => setShowPin(false)} style={{ position: "fixed", inset: 0, zIndex: 9988 }} />
+              <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, background: T.surface, border: `1px solid ${T.border}`, borderRadius: "4px", padding: "14px", zIndex: 9989, width: "220px", boxShadow: "0 8px 32px rgba(0,0,0,0.5)" }}>
+                <div style={{ fontSize: "12px", color: T.textMuted, marginBottom: "10px" }}>Enter your pincode to see delivery dates</div>
+                <form onSubmit={e => {
+                  e.preventDefault();
+                  if (/^\d{6}$/.test(pinInput)) { onPincodeChange(pinInput); setShowPin(false); }
+                }} style={{ display: "flex", gap: "6px" }}>
+                  <input
+                    autoFocus
+                    value={pinInput}
+                    onChange={e => setPinInput(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                    placeholder="6-digit pincode"
+                    maxLength={6}
+                    style={{ flex: 1, background: T.surface2, border: `1px solid ${T.borderFaint}`, borderRadius: "2px", padding: "7px 10px", color: T.text, fontSize: "13px", outline: "none", fontFamily: SANS }} />
+                  <button type="submit"
+                    style={{ padding: "7px 12px", background: T.gold, border: "none", borderRadius: "2px", color: "#0A0A0A", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}>
+                    Apply
+                  </button>
+                </form>
+                {pincode && (
+                  <div onClick={() => { onPincodeChange(""); setShowPin(false); }}
+                    style={{ marginTop: "8px", fontSize: "11px", color: T.red, cursor: "pointer", textAlign: "right" }}>
+                    Clear pincode
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
 
       {/* Search - desktop only */}
       <form onSubmit={handleSearch} style={{ position: "relative", width: mobile ? "0" : "280px", overflow: mobile ? "hidden" : "visible", opacity: mobile ? 0 : 1 }}>
@@ -573,11 +610,19 @@ const ProductsPage = ({ onAddToCart, onProductClick, filterCategory, searchQuery
 };
 
 // ── ProductDetailPage ─────────────────────────────────────────────────────────
-const ProductDetailPage = ({ product, onAddToCart, onNavigate }) => {
+const ProductDetailPage = ({ product, onAddToCart, onNavigate, pincode }) => {
   const mobile = useMobile();
   const [qty, setQty] = useState(1);
   const [added, setAdded] = useState(false);
+  const [delivery, setDelivery] = useState(null); // { deliveryDays } or { error }
   const handleAdd = () => { for (let i = 0; i < qty; i++) onAddToCart(product); setAdded(true); setTimeout(() => setAdded(false), 2000); };
+
+  useEffect(() => {
+    if (!pincode || !product?.id) { setDelivery(null); return; }
+    api.checkDelivery(product.id, pincode)
+      .then(r => setDelivery(r.data))
+      .catch(() => setDelivery({ error: true }));
+  }, [pincode, product?.id]);
 
   return (
     <div style={{ background: T.bg, minHeight: "100vh", padding: mobile ? "24px 16px" : "60px" }}>
@@ -610,7 +655,18 @@ const ProductDetailPage = ({ product, onAddToCart, onNavigate }) => {
             </div>
             <GoldBtn onClick={handleAdd} style={{ flex: 1 }}>{added ? "✓ Added to Cart" : "Add to Cart"}</GoldBtn>
           </div>
-          <div style={{ fontSize: "12px", color: T.textMuted }}>✈️ Free Prime delivery available</div>
+          {/* Delivery estimate */}
+          {pincode ? (
+            delivery === null
+              ? <div style={{ fontSize: "12px", color: T.textMuted }}>🔍 Checking delivery to {pincode}…</div>
+              : delivery.error
+                ? <div style={{ fontSize: "12px", color: T.red }}>❌ Not serviceable to pincode {pincode}</div>
+                : <div style={{ fontSize: "13px", color: T.green }}>
+                    ✅ Delivers to <strong>{pincode}</strong> in <strong>{delivery.deliveryDays} day{delivery.deliveryDays !== 1 ? "s" : ""}</strong>
+                  </div>
+          ) : (
+            <div style={{ fontSize: "12px", color: T.textMuted }}>📍 Enter pincode in the header to check delivery</div>
+          )}
         </div>
       </div>
     </div>
@@ -936,6 +992,9 @@ const AccountPage = ({ user, onNavigate, defaultTab }) => {
   const [showAddProduct, setShowAddProduct] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [productForm, setProductForm] = useState({ name:"", description:"", price:"", stock:"", category:"", brand:"", imageUrl:"" });
+  const [sellerPincodes, setSellerPincodes] = useState([]);
+  const [newPincode, setNewPincode] = useState("");
+  const [newDeliveryDays, setNewDeliveryDays] = useState("3");
 
   useEffect(() => {
     api.checkIsSeller().then(r => {
@@ -943,6 +1002,7 @@ const AccountPage = ({ user, onNavigate, defaultTab }) => {
       if (r.data.isSeller) {
         api.getSellerProfile().then(s => setSellerProfile(s.data));
         api.getSellerProducts().then(s => setSellerProducts(s.data));
+        api.getSellerPincodes().then(s => setSellerPincodes(s.data));
       }
     }).catch(() => {});
   }, []);
@@ -984,6 +1044,23 @@ const AccountPage = ({ user, onNavigate, defaultTab }) => {
   const deleteSellerProduct = async (id) => {
     try { await api.deleteSellerProduct(id); setSellerProducts(ps => ps.filter(p => p.id !== id)); flash("Product deleted"); }
     catch { flash("Failed to delete", true); }
+  };
+
+  const addSellerPincode = async () => {
+    if (!/^\d{6}$/.test(newPincode)) return flash("Enter a valid 6-digit pincode", true);
+    const days = parseInt(newDeliveryDays);
+    if (isNaN(days) || days < 1) return flash("Enter valid delivery days", true);
+    try {
+      const r = await api.addSellerPincode({ pincode: newPincode, deliveryDays: days });
+      setSellerPincodes(ps => [...ps, r.data]);
+      setNewPincode(""); setNewDeliveryDays("3");
+      flash("Pincode added");
+    } catch(e) { flash(e.response?.data?.message || "Failed to add pincode", true); }
+  };
+
+  const deleteSellerPincode = async (id) => {
+    try { await api.deleteSellerPincode(id); setSellerPincodes(ps => ps.filter(p => p.id !== id)); flash("Pincode removed"); }
+    catch { flash("Failed to remove pincode", true); }
   };
 
   const tabs = [
@@ -1225,6 +1302,61 @@ const AccountPage = ({ user, onNavigate, defaultTab }) => {
                     ))}
                   </div>
                 )}
+
+                {/* Delivery Zones */}
+                <div style={{ marginTop: "32px" }}>
+                  <div style={{ fontSize: "10px", color: T.gold, letterSpacing: "2px", marginBottom: "14px" }}>DELIVERY ZONES — SERVICEABLE PINCODES</div>
+                  <div style={{ fontSize: "12px", color: T.textMuted, marginBottom: "14px" }}>
+                    Add pincodes your shop can deliver to, and specify how many days it takes. Buyers will see this estimate on product pages.
+                  </div>
+
+                  {/* Add pincode row */}
+                  <div style={{ display: "flex", gap: "10px", alignItems: "flex-end", marginBottom: "16px", flexWrap: "wrap" }}>
+                    <div style={{ flex: "1 1 140px" }}>
+                      <label style={{ display:"block", fontSize:"10px", color:T.gold, letterSpacing:"1px", marginBottom:"6px" }}>PINCODE (6 digits)</label>
+                      <input
+                        value={newPincode}
+                        onChange={e => setNewPincode(e.target.value.replace(/\D/g,"").slice(0,6))}
+                        placeholder="e.g. 560001"
+                        maxLength={6}
+                        style={{ background:T.surface2, border:`1px solid ${T.borderFaint}`, color:T.text, padding:"10px 14px", borderRadius:"2px", fontSize:"14px", fontFamily:SANS, width:"100%", outline:"none" }}
+                      />
+                    </div>
+                    <div style={{ flex: "1 1 120px" }}>
+                      <label style={{ display:"block", fontSize:"10px", color:T.gold, letterSpacing:"1px", marginBottom:"6px" }}>DELIVERY DAYS</label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="30"
+                        value={newDeliveryDays}
+                        onChange={e => setNewDeliveryDays(e.target.value)}
+                        placeholder="e.g. 3"
+                        style={{ background:T.surface2, border:`1px solid ${T.borderFaint}`, color:T.text, padding:"10px 14px", borderRadius:"2px", fontSize:"14px", fontFamily:SANS, width:"100%", outline:"none" }}
+                      />
+                    </div>
+                    <GoldBtn small onClick={addSellerPincode} style={{ flexShrink:0 }}>+ Add Zone</GoldBtn>
+                  </div>
+
+                  {/* Pincode list */}
+                  {sellerPincodes.length === 0 ? (
+                    <div style={{ textAlign:"center", padding:"24px", color:T.textMuted, fontSize:"13px", background:T.surface2, border:`1px solid ${T.borderFaint}`, borderRadius:"2px" }}>
+                      No delivery zones added yet. Buyers will not see delivery estimates for your products.
+                    </div>
+                  ) : (
+                    <div style={{ display:"flex", flexDirection:"column", gap:"6px" }}>
+                      {sellerPincodes.map(sp => (
+                        <div key={sp.id} style={{ display:"flex", alignItems:"center", gap:"12px", padding:"12px 14px", background:T.surface2, border:`1px solid ${T.borderFaint}`, borderRadius:"2px" }}>
+                          <span style={{ fontSize:"16px" }}>📍</span>
+                          <span style={{ flex:1, fontFamily:SERIF, fontSize:"15px", color:T.text, letterSpacing:"1px" }}>{sp.pincode}</span>
+                          <span style={{ fontSize:"12px", color:T.textMuted }}>Delivers in</span>
+                          <span style={{ fontSize:"14px", color:T.gold, fontWeight:600 }}>{sp.deliveryDays} day{sp.deliveryDays === 1 ? "" : "s"}</span>
+                          <button onClick={() => deleteSellerPincode(sp.id)}
+                            style={{ background:"none", border:`1px solid rgba(239,68,68,0.3)`, color:T.red, padding:"4px 10px", borderRadius:"2px", cursor:"pointer", fontSize:"12px" }}>Remove</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -1555,6 +1687,12 @@ export default function App() {
   const [hasMore, setHasMore]             = useState(true);
   const [toast, setToast]                 = useState(null);
   const [navParam, setNavParam]           = useState(null);
+  const [pincode, setPincode]             = useState(() => localStorage.getItem("pincode") || "");
+
+  const handlePincodeChange = p => {
+    setPincode(p);
+    if (p) localStorage.setItem("pincode", p); else localStorage.removeItem("pincode");
+  };
 
   const cartCount = cart.reduce((s, i) => s + i.qty, 0);
 
@@ -1689,7 +1827,7 @@ export default function App() {
   const renderPage = () => {
     switch (page) {
       case "home":     return <HomePage onNavigate={navigate} onAddToCart={p => { try { requireAuth(); addToCart(p); showToast(`${p.name} added to cart`); } catch {} }} onProductClick={productClick} products={products} cart={cart} onRemoveFromCart={removeFromCart} />;
-      case "product":  return selectedProduct ? <ProductDetailPage product={selectedProduct} onAddToCart={p => { try { requireAuth(); addToCart(p); showToast(`${p.name} added to cart`); } catch {} }} onNavigate={navigate} /> : null;
+      case "product":  return selectedProduct ? <ProductDetailPage product={selectedProduct} onAddToCart={p => { try { requireAuth(); addToCart(p); showToast(`${p.name} added to cart`); } catch {} }} onNavigate={navigate} pincode={pincode} /> : null;
       case "products": return <ProductsPage onAddToCart={p => { try { requireAuth(); addToCart(p); showToast(`${p.name} added to cart`); } catch {} }} onProductClick={productClick} filterCategory={filterCategory} searchQuery={searchQuery} products={searchResults !== null ? searchResults : products} loading={searchLoading || productsLoading} cart={cart} onRemoveFromCart={removeFromCart} onLoadMore={loadMoreProducts} hasMore={searchResults !== null ? false : hasMore} />;
       case "cart":     return <CartPage cart={cart} onRemove={removeFromCart} onUpdateQty={updateQty} onNavigate={navigate} />;
       case "checkout": return <CheckoutPage cart={cart} user={user} onNavigate={navigate} onPlaceOrder={placeOrder} />;
@@ -1718,7 +1856,7 @@ export default function App() {
               setSearchResults(null);
             }
             navigate("products");
-          }} user={user} onLogout={handleLogout} products={products} />
+          }} user={user} onLogout={handleLogout} products={products} pincode={pincode} onPincodeChange={handlePincodeChange} />
       )}
       <main>{renderPage()}</main>
       <Toast msg={toast} />
