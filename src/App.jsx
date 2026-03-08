@@ -1,385 +1,442 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import * as api from "./api";
 
+// ── Theme ────────────────────────────────────────────────────────────────────
+const T = {
+  bg: "#0A0A0A", surface: "#111111", surface2: "#181818", surface3: "#1F1F1F",
+  gold: "#C5A059", goldLight: "#E8C97A", goldDim: "rgba(197,160,89,0.15)",
+  border: "rgba(197,160,89,0.18)", borderFaint: "rgba(255,255,255,0.06)",
+  text: "#FFFFFF", textMuted: "#A1A1AA", textFaint: "#555",
+  red: "#ef4444", green: "#22c55e",
+};
+
+const SERIF = "'Playfair Display', Georgia, serif";
+const SANS  = "'Inter', sans-serif";
+
 const CATEGORIES = [
-  { id: 1, name: "Electronics", icon: "💻", color: "#e8f4f8" },
-  { id: 2, name: "Books", icon: "📚", color: "#fef9e7" },
-  { id: 3, name: "Clothing", icon: "👕", color: "#fdf2f8" },
-  { id: 4, name: "Home & Kitchen", icon: "🏠", color: "#f0fff4" },
-  { id: 5, name: "Sports", icon: "⚽", color: "#fff5f5" },
-  { id: 6, name: "Toys", icon: "🎮", color: "#f5f0ff" },
+  { id: 1, name: "Mobiles",          img: "https://picsum.photos/seed/mobile99/600/800" },
+  { id: 2, name: "Laptops",          img: "https://picsum.photos/seed/laptop88/600/800" },
+  { id: 3, name: "Electronics",      img: "https://picsum.photos/seed/elec77/600/800"   },
+  { id: 4, name: "Clothing",         img: "https://picsum.photos/seed/cloth66/600/800"  },
+  { id: 5, name: "Home & Kitchen",   img: "https://picsum.photos/seed/kitchen55/600/800"},
+  { id: 6, name: "Sports & Fitness", img: "https://picsum.photos/seed/sport44/600/800"  },
+  { id: 7, name: "Beauty & Personal Care", img: "https://picsum.photos/seed/beauty33/600/800"},
+  { id: 8, name: "Books",            img: "https://picsum.photos/seed/book22/600/800"   },
+  { id: 9, name: "Furniture",        img: "https://picsum.photos/seed/furn11/600/800"   },
+  { id:10, name: "Toys & Games",     img: "https://picsum.photos/seed/toys10/600/800"   },
 ];
 
-const CATEGORY_ICONS = {
-  Electronics: "💻", Books: "📖", Clothing: "👕",
-  "Home & Kitchen": "🏠", Sports: "⚽", Toys: "🎮",
-  default: "📦",
-};
-const getIcon = (category) => CATEGORY_ICONS[category] || CATEGORY_ICONS.default;
-
-const Stars = ({ rating }) => {
-  const full = Math.floor(rating);
-  const half = rating % 1 >= 0.5;
+// ── Helpers ───────────────────────────────────────────────────────────────────
+const Stars = ({ rating = 0 }) => {
+  const full = Math.floor(rating), half = rating % 1 >= 0.5;
   return (
-    <span style={{ color: "#f0a500", fontSize: "13px", letterSpacing: "1px" }}>
+    <span style={{ color: T.gold, fontSize: "12px", letterSpacing: "1px" }}>
       {"★".repeat(full)}{half ? "½" : ""}{"☆".repeat(5 - full - (half ? 1 : 0))}
     </span>
   );
 };
 
-const Spinner = () => (
-  <div style={{ textAlign: "center", padding: "60px" }}>
-    <div style={{ fontSize: "32px", animation: "spin 1s linear infinite", display: "inline-block" }}>⏳</div>
-    <p style={{ color: "#888", marginTop: "12px" }}>Loading...</p>
-  </div>
+const GoldBtn = ({ children, onClick, style = {}, outline = false, small = false }) => (
+  <button onClick={onClick} style={{
+    background: outline ? "transparent" : `linear-gradient(135deg, ${T.gold}, ${T.goldLight})`,
+    color: outline ? T.gold : "#0A0A0A",
+    border: outline ? `1px solid ${T.gold}` : "none",
+    borderRadius: "2px", fontFamily: SANS, fontWeight: 600,
+    padding: small ? "6px 16px" : "12px 28px",
+    fontSize: small ? "12px" : "14px",
+    cursor: "pointer", letterSpacing: "0.5px",
+    transition: "all 0.2s ease",
+    ...style,
+  }}
+    onMouseEnter={e => { e.currentTarget.style.opacity = "0.85"; e.currentTarget.style.transform = "translateY(-1px)"; }}
+    onMouseLeave={e => { e.currentTarget.style.opacity = "1"; e.currentTarget.style.transform = "translateY(0)"; }}
+  >{children}</button>
 );
 
+const Divider = ({ style = {} }) => (
+  <div style={{ height: "1px", background: T.border, ...style }} />
+);
+
+// ── Navbar ────────────────────────────────────────────────────────────────────
 const Navbar = ({ cartCount, onNavigate, searchQuery, onSearch, user, onLogout, products = [] }) => {
-  const [query, setQuery] = useState(searchQuery || "");
+  const [query, setQuery]               = useState(searchQuery || "");
+  const [showAcct, setShowAcct]         = useState(false);
+  const [showSugg, setShowSugg]         = useState(false);
+  const [scrolled, setScrolled]         = useState(false);
+
   useEffect(() => { setQuery(searchQuery || ""); }, [searchQuery]);
-  const [showDropdown, setShowDropdown] = useState(false);
-  const [showSuggestions, setShowSuggestions] = useState(false);
+  useEffect(() => {
+    const fn = () => setScrolled(window.scrollY > 20);
+    window.addEventListener("scroll", fn);
+    return () => window.removeEventListener("scroll", fn);
+  }, []);
 
   const suggestions = query.trim().length > 0
-    ? products
-        .filter(p => p.name?.toLowerCase().includes(query.toLowerCase()))
-        .map(p => p.name)
-        .filter((v, i, a) => a.indexOf(v) === i)
-        .slice(0, 8)
+    ? products.filter(p => p.name?.toLowerCase().includes(query.toLowerCase()))
+        .map(p => p.name).filter((v, i, a) => a.indexOf(v) === i).slice(0, 8)
     : [];
 
-  const handleSearch = (e) => {
-    e.preventDefault();
-    setShowSuggestions(false);
-    onSearch(query);
-    onNavigate("products");
-  };
-
-  const pickSuggestion = (s) => {
-    setQuery(s);
-    setShowSuggestions(false);
-    onSearch(s);
-    onNavigate("products");
-  };
+  const handleSearch = e => { e.preventDefault(); setShowSugg(false); onSearch(query); onNavigate("products"); };
 
   const highlightMatch = (text, q) => {
     const idx = text.toLowerCase().indexOf(q.toLowerCase());
-    if (idx === -1) return <span style={{ color: "#131921" }}>{text}</span>;
-    return (
-      <span>
-        <span style={{ color: "#888" }}>{text.slice(0, idx)}</span>
-        <span style={{ color: "#131921", fontWeight: 700 }}>{text.slice(idx, idx + q.length)}</span>
-        <span style={{ color: "#888" }}>{text.slice(idx + q.length)}</span>
-      </span>
-    );
+    if (idx === -1) return <span style={{ color: T.text }}>{text}</span>;
+    return <span>
+      <span style={{ color: T.textMuted }}>{text.slice(0, idx)}</span>
+      <span style={{ color: T.gold, fontWeight: 600 }}>{text.slice(idx, idx + q.length)}</span>
+      <span style={{ color: T.textMuted }}>{text.slice(idx + q.length)}</span>
+    </span>;
   };
+
+  const navStyle = {
+    position: "sticky", top: 0, zIndex: 1000,
+    background: scrolled ? "rgba(10,10,10,0.92)" : "rgba(10,10,10,0.7)",
+    backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)",
+    borderBottom: `1px solid ${scrolled ? T.border : "transparent"}`,
+    transition: "all 0.3s ease",
+    padding: "0 40px", height: "68px",
+    display: "flex", alignItems: "center", gap: "32px",
+  };
+
   return (
-    <header>
-      <div style={{ background: "#131921", padding: "8px 16px", display: "flex", alignItems: "center", gap: "12px", position: "sticky", top: 0, zIndex: 1000 }}>
-        <div onClick={() => onNavigate("home")} style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: "2px", minWidth: "130px", padding: "6px 8px", borderRadius: "3px", border: "1px solid transparent" }}
-          onMouseEnter={e => e.currentTarget.style.borderColor = "white"}
-          onMouseLeave={e => e.currentTarget.style.borderColor = "transparent"}>
-          <span style={{ color: "white", fontSize: "22px", fontWeight: 800, fontFamily: "'Georgia', serif", letterSpacing: "-1px" }}>amazon</span>
-          <span style={{ color: "#ff9900", fontSize: "22px", fontWeight: 800 }}>.</span>
-          <span style={{ color: "#ff9900", fontSize: "10px", marginTop: "8px" }}>in</span>
+    <header style={navStyle}>
+      {/* Logo */}
+      <div onClick={() => onNavigate("home")} style={{ cursor: "pointer", display: "flex", alignItems: "baseline", gap: "3px", minWidth: "140px" }}>
+        <span style={{ fontFamily: SERIF, fontSize: "22px", fontWeight: 700, color: T.text, letterSpacing: "-0.5px" }}>Prime</span>
+        <span style={{ fontFamily: SERIF, fontSize: "22px", fontWeight: 400, fontStyle: "italic", color: T.gold }}>Deals</span>
+      </div>
+
+      {/* Nav links */}
+      <nav style={{ display: "flex", gap: "28px", flex: 1 }}>
+        {[["New Arrivals","products"],["Collections","products"],["Boutique","products"]].map(([label, pg]) => (
+          <span key={label} onClick={() => onNavigate(pg)}
+            style={{ color: T.textMuted, fontSize: "13px", letterSpacing: "0.5px", cursor: "pointer", transition: "color 0.2s" }}
+            onMouseEnter={e => e.currentTarget.style.color = T.gold}
+            onMouseLeave={e => e.currentTarget.style.color = T.textMuted}>{label}</span>
+        ))}
+      </nav>
+
+      {/* Search */}
+      <form onSubmit={handleSearch} style={{ position: "relative", width: "280px" }}>
+        <div style={{ display: "flex", alignItems: "center", background: T.surface2, border: `1px solid ${T.borderFaint}`, borderRadius: "2px", overflow: "visible" }}>
+          <input value={query}
+            onChange={e => { setQuery(e.target.value); setShowSugg(true); }}
+            onFocus={() => setShowSugg(true)}
+            onBlur={() => setTimeout(() => setShowSugg(false), 150)}
+            placeholder="Search products..."
+            style={{ flex: 1, background: "transparent", border: "none", outline: "none", padding: "9px 14px", color: T.text, fontSize: "13px", fontFamily: SANS }} />
+          <button type="submit" style={{ background: "none", border: "none", padding: "0 12px", cursor: "pointer", color: T.textMuted, fontSize: "15px" }}>⌕</button>
         </div>
-        <div style={{ color: "white", fontSize: "11px", minWidth: "80px", padding: "6px 8px", borderRadius: "3px", border: "1px solid transparent" }}
-          onMouseEnter={e => e.currentTarget.style.borderColor = "white"}
-          onMouseLeave={e => e.currentTarget.style.borderColor = "transparent"}>
-          <div style={{ color: "#ccc" }}>Deliver to</div>
-          <div style={{ fontWeight: 700, fontSize: "13px" }}>📍 India</div>
+        {showSugg && suggestions.length > 0 && (
+          <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, background: T.surface, border: `1px solid ${T.border}`, borderRadius: "2px", zIndex: 9999, overflow: "hidden" }}>
+            {suggestions.map((s, i) => (
+              <div key={i} onMouseDown={() => { setQuery(s); setShowSugg(false); onSearch(s); onNavigate("products"); }}
+                style={{ padding: "9px 14px", fontSize: "13px", cursor: "pointer", borderBottom: i < suggestions.length - 1 ? `1px solid ${T.borderFaint}` : "none" }}
+                onMouseEnter={e => e.currentTarget.style.background = T.surface2}
+                onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                {highlightMatch(s, query)}
+              </div>
+            ))}
+          </div>
+        )}
+      </form>
+
+      {/* Right icons */}
+      <div style={{ display: "flex", alignItems: "center", gap: "24px" }}>
+        {/* Cart */}
+        <div onClick={() => onNavigate("cart")} style={{ position: "relative", cursor: "pointer" }}>
+          <span style={{ fontSize: "20px", color: T.textMuted }}>🛒</span>
+          {cartCount > 0 && (
+            <span style={{ position: "absolute", top: "-8px", right: "-8px", background: T.gold, color: "#0A0A0A", borderRadius: "50%", width: "17px", height: "17px", fontSize: "10px", fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{cartCount}</span>
+          )}
         </div>
-        <form onSubmit={handleSearch} style={{ flex: 1, display: "flex", borderRadius: "4px", overflow: "hidden", height: "40px", position: "relative" }}>
-          <select style={{ background: "#e3e6e6", border: "none", padding: "0 8px", fontSize: "12px", color: "#333", cursor: "pointer", outline: "none", borderRight: "1px solid #ccc" }}>
-            <option>All</option>
-            {CATEGORIES.map(c => <option key={c.id}>{c.name}</option>)}
-          </select>
-          <div style={{ flex: 1, position: "relative" }}>
-            <input value={query}
-              onChange={e => { setQuery(e.target.value); setShowSuggestions(true); }}
-              onFocus={() => setShowSuggestions(true)}
-              onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
-              placeholder="Search Amazon"
-              style={{ width: "100%", height: "100%", border: "none", padding: "0 12px", fontSize: "14px", outline: "none", boxSizing: "border-box" }} />
-            {showSuggestions && suggestions.length > 0 && (
-              <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "white", border: "1px solid #ccc", borderTop: "none", borderRadius: "0 0 4px 4px", boxShadow: "0 4px 12px rgba(0,0,0,0.15)", zIndex: 9999 }}>
-                {suggestions.map((s, i) => (
-                  <div key={i} onMouseDown={() => pickSuggestion(s)}
-                    style={{ padding: "9px 14px", fontSize: "14px", cursor: "pointer", display: "flex", alignItems: "center", gap: "8px", color: "#131921" }}
-                    onMouseEnter={e => e.currentTarget.style.background = "#f0f2f2"}
-                    onMouseLeave={e => e.currentTarget.style.background = "white"}>
-                    <span style={{ color: "#aaa", fontSize: "12px" }}>🔍</span>
-                    {highlightMatch(s, query)}
-                  </div>
-                ))}
-              </div>
-            )}
+
+        {/* Account */}
+        <div style={{ position: "relative" }} onMouseEnter={() => setShowAcct(true)} onMouseLeave={() => setShowAcct(false)}>
+          <div onClick={() => !user && onNavigate("login")} style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: "6px" }}>
+            <div style={{ width: "32px", height: "32px", borderRadius: "50%", background: T.goldDim, border: `1px solid ${T.gold}`, display: "flex", alignItems: "center", justifyContent: "center", color: T.gold, fontSize: "13px", fontWeight: 600 }}>
+              {user ? user.name?.[0]?.toUpperCase() : "?"}
+            </div>
+            <span style={{ fontSize: "12px", color: T.textMuted }}>{user ? user.name?.split(" ")[0] : "Sign in"}</span>
           </div>
-          <button type="submit" style={{ background: "#ff9900", border: "none", padding: "0 16px", cursor: "pointer", fontSize: "18px" }}>🔍</button>
-        </form>
-        <div style={{ position: "relative" }}
-          onMouseEnter={() => setShowDropdown(true)}
-          onMouseLeave={() => setShowDropdown(false)}>
-          <div style={{ color: "white", fontSize: "12px", cursor: "pointer", padding: "6px 8px", borderRadius: "3px", border: "1px solid transparent", minWidth: "110px" }}
-            onClick={() => !user && onNavigate("login")}
-            onMouseEnter={e => e.currentTarget.style.borderColor = "white"}
-            onMouseLeave={e => e.currentTarget.style.borderColor = "transparent"}>
-            <div style={{ color: "#ccc" }}>Hello, {user ? user.name : "sign in"}</div>
-            <div style={{ fontWeight: 700, fontSize: "13px" }}>Account & Lists ▾</div>
-          </div>
-          {user && showDropdown && (
-            <div style={{ position: "absolute", top: "100%", right: 0, background: "white", borderRadius: "4px", boxShadow: "0 4px 20px rgba(0,0,0,0.25)", minWidth: "220px", zIndex: 9999, padding: "8px 0", border: "1px solid #e3e6e6" }}>
-              <div style={{ padding: "8px 16px 6px", borderBottom: "1px solid #e3e6e6", marginBottom: "4px" }}>
-                <div style={{ fontSize: "12px", color: "#555" }}>Signed in as</div>
-                <div style={{ fontSize: "13px", fontWeight: 700, color: "#131921" }}>{user.name}</div>
+          {user && showAcct && (
+            <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, background: T.surface, border: `1px solid ${T.border}`, borderRadius: "2px", minWidth: "200px", zIndex: 9999, overflow: "hidden" }}>
+              <div style={{ padding: "12px 16px", borderBottom: `1px solid ${T.borderFaint}` }}>
+                <div style={{ fontSize: "11px", color: T.textMuted, letterSpacing: "0.5px" }}>SIGNED IN AS</div>
+                <div style={{ fontSize: "13px", fontWeight: 600, color: T.text, marginTop: "2px" }}>{user.name}</div>
               </div>
-              {[
-                { label: "Your Account", icon: "👤", page: "account" },
-                { label: "Your Orders", icon: "📦", page: "orders" },
-                { label: "Returns", icon: "↩️", page: "orders" },
-                { label: "Your Seller Account", icon: "🏪", page: null },
-                { label: "Membership & Subscriptions", icon: "⭐", page: null },
-              ].map(item => (
-                <div key={item.label}
-                  onClick={() => { if (item.page) { onNavigate(item.page); setShowDropdown(false); } }}
-                  style={{ padding: "9px 16px", fontSize: "13px", color: "#131921", cursor: "pointer", display: "flex", alignItems: "center", gap: "10px" }}
-                  onMouseEnter={e => e.currentTarget.style.background = "#f0f2f2"}
-                  onMouseLeave={e => e.currentTarget.style.background = "white"}>
-                  <span>{item.icon}</span> {item.label}
-                </div>
+              {[["👤 Your Account","account"],["📦 Your Orders","orders"],["↩️ Returns","orders"]].map(([label, pg]) => (
+                <div key={label} onClick={() => { onNavigate(pg); setShowAcct(false); }}
+                  style={{ padding: "10px 16px", fontSize: "13px", color: T.textMuted, cursor: "pointer", transition: "all 0.15s" }}
+                  onMouseEnter={e => { e.currentTarget.style.background = T.surface2; e.currentTarget.style.color = T.gold; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = T.textMuted; }}>{label}</div>
               ))}
-              <div style={{ borderTop: "1px solid #e3e6e6", marginTop: "4px" }}>
-                <div onClick={() => { onLogout(); setShowDropdown(false); }}
-                  style={{ padding: "9px 16px", fontSize: "13px", color: "#c7511f", cursor: "pointer", display: "flex", alignItems: "center", gap: "10px", fontWeight: 600 }}
-                  onMouseEnter={e => e.currentTarget.style.background = "#fff5ee"}
-                  onMouseLeave={e => e.currentTarget.style.background = "white"}>
-                  <span>🚪</span> Sign Out
-                </div>
+              <div style={{ borderTop: `1px solid ${T.borderFaint}` }}>
+                <div onClick={() => { onLogout(); setShowAcct(false); }}
+                  style={{ padding: "10px 16px", fontSize: "13px", color: T.red, cursor: "pointer" }}
+                  onMouseEnter={e => e.currentTarget.style.background = T.surface2}
+                  onMouseLeave={e => e.currentTarget.style.background = "transparent"}>🚪 Sign Out</div>
               </div>
             </div>
           )}
         </div>
-        <div onClick={() => onNavigate("orders")} style={{ color: "white", fontSize: "12px", cursor: "pointer", padding: "6px 8px", borderRadius: "3px", border: "1px solid transparent" }}
-          onMouseEnter={e => e.currentTarget.style.borderColor = "white"}
-          onMouseLeave={e => e.currentTarget.style.borderColor = "transparent"}>
-          <div style={{ color: "#ccc" }}>Returns</div>
-          <div style={{ fontWeight: 700, fontSize: "13px" }}>& Orders</div>
-        </div>
-        <div onClick={() => onNavigate("cart")} style={{ color: "white", display: "flex", alignItems: "center", gap: "4px", cursor: "pointer", padding: "6px 8px", borderRadius: "3px", border: "1px solid transparent" }}
-          onMouseEnter={e => e.currentTarget.style.borderColor = "white"}
-          onMouseLeave={e => e.currentTarget.style.borderColor = "transparent"}>
-          <div style={{ position: "relative" }}>
-            <span style={{ fontSize: "26px" }}>🛒</span>
-            <span style={{ position: "absolute", top: "-4px", right: "-4px", background: "#ff9900", color: "#131921", borderRadius: "50%", fontSize: "11px", fontWeight: 800, width: "18px", height: "18px", display: "flex", alignItems: "center", justifyContent: "center" }}>{cartCount}</span>
-          </div>
-          <span style={{ fontWeight: 700, fontSize: "13px" }}>Cart</span>
-        </div>
-      </div>
-      <div style={{ background: "#232f3e", padding: "4px 16px", display: "flex", gap: "4px", alignItems: "center", overflowX: "auto" }}>
-        {["All", "Today's Deals", "Customer Service", "Gift Cards", "Sell"].map(item => (
-          <div key={item} onClick={() => item === "Customer Service" ? onNavigate("account", "contact") : null}
-            style={{ color: "white", fontSize: "13px", padding: "6px 10px", whiteSpace: "nowrap", cursor: "pointer", borderRadius: "3px", border: "1px solid transparent" }}
-            onMouseEnter={e => e.currentTarget.style.borderColor = "white"}
-            onMouseLeave={e => e.currentTarget.style.borderColor = "transparent"}>
-            {item === "All" ? "☰ All" : item}
-          </div>
-        ))}
+
+        {/* Customer service */}
+        <span onClick={() => onNavigate("account", "contact")} style={{ fontSize: "12px", color: T.textMuted, cursor: "pointer", letterSpacing: "0.3px" }}
+          onMouseEnter={e => e.currentTarget.style.color = T.gold}
+          onMouseLeave={e => e.currentTarget.style.color = T.textMuted}>Help</span>
       </div>
     </header>
   );
 };
 
-const ProductCard = ({ product, onAddToCart, onClick, cartItem, onRemoveFromCart }) => (
-  <div style={{ border: "1px solid #e3e6e6", borderRadius: "8px", padding: "16px", cursor: "pointer", transition: "box-shadow 0.2s", background: "white", display: "flex", flexDirection: "column" }}
-    onMouseEnter={e => e.currentTarget.style.boxShadow = "0 4px 16px rgba(0,0,0,0.1)"}
-    onMouseLeave={e => e.currentTarget.style.boxShadow = ""}>
-    <div onClick={onClick} style={{ fontSize: "52px", textAlign: "center", padding: "16px 0" }}>
-      {product.imageUrl && product.imageUrl.startsWith("http")
-        ? <img src={product.imageUrl} alt={product.name} style={{ width: "80px", height: "80px", objectFit: "contain" }} onError={e => { e.target.style.display = "none"; }} />
-        : null}
-      <span>{getIcon(product.category)}</span>
-    </div>
-    <div onClick={onClick} style={{ flex: 1 }}>
-      <div style={{ fontSize: "13px", fontWeight: 600, marginBottom: "4px", lineHeight: "1.4", color: "#0f1111" }}>{product.name}</div>
-      <div style={{ fontSize: "12px", color: "#888", marginBottom: "4px" }}>{product.brand}</div>
-      <div style={{ marginBottom: "4px" }}><Stars rating={product.rating || 0} /></div>
-      <div style={{ fontSize: "11px", color: "#007185", marginBottom: "8px" }}>{product.numReviews || 0} reviews</div>
-      <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
-        <span style={{ fontSize: "18px", fontWeight: 700, color: "#0f1111" }}>₹{product.price?.toLocaleString()}</span>
-      </div>
-      <div style={{ color: "#007185", fontSize: "11px", fontWeight: 600, marginTop: "4px" }}>✓ Prime FREE Delivery</div>
-    </div>
-    {cartItem ? (
-      <div style={{ display: "flex", alignItems: "center", marginTop: "12px", border: "1px solid #ddd", borderRadius: "20px", overflow: "hidden" }}>
-        <button onClick={(e) => { e.stopPropagation(); onRemoveFromCart(product.id, cartItem.cartItemId); }}
-          style={{ flex: 1, background: "#f8f8f8", border: "none", padding: "8px", cursor: "pointer", color: "#c45500", fontSize: "14px", fontWeight: 700 }}>🗑</button>
-        <span style={{ flex: 1, textAlign: "center", fontSize: "14px", fontWeight: 700, color: "#0f1111" }}>{cartItem.qty}</span>
-        <button onClick={(e) => { e.stopPropagation(); if(cartItem.qty < 5) onAddToCart(product); }}
-          disabled={cartItem.qty >= 5}
-          style={{ flex: 1, background: cartItem.qty >= 5 ? "#ccc" : "#ff9900", border: "none", padding: "8px", cursor: cartItem.qty >= 5 ? "not-allowed" : "pointer", color: "#131921", fontSize: "18px", fontWeight: 700 }}>+</button>
-      </div>
-    ) : (
-      <button onClick={(e) => { e.stopPropagation(); onAddToCart(product); }}
-        style={{ marginTop: "12px", background: "#ff9900", border: "none", borderRadius: "20px", padding: "8px", fontSize: "12px", fontWeight: 700, cursor: "pointer", color: "#131921", transition: "background 0.2s" }}
-        onMouseEnter={e => e.currentTarget.style.background = "#fa8900"}
-        onMouseLeave={e => e.currentTarget.style.background = "#ff9900"}>
-        Add to Cart
-      </button>
-    )}
-  </div>
-);
+// ── ProductCard ───────────────────────────────────────────────────────────────
+const ProductCard = ({ product, onProductClick, onAddToCart, cart, onRemoveFromCart }) => {
+  const cartItem = cart?.find(i => i.id === product.id);
+  const qty = cartItem?.qty || 0;
 
-const HomePage = ({ onNavigate, onAddToCart, onProductClick, products, cart, onRemoveFromCart }) => {
-  const [bannerIndex, setBannerIndex] = useState(0);
-  const banners = [
-    { bg: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", text: "Incredible Deals on Electronics", sub: "Up to 70% off on top brands", btn: "Shop Electronics" },
-    { bg: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)", text: "Fashion for Every Season", sub: "New arrivals & exclusive styles", btn: "Shop Fashion" },
-    { bg: "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)", text: "Home & Kitchen Essentials", sub: "Upgrade your space today", btn: "Shop Home" },
-  ];
-  useEffect(() => {
-    const t = setInterval(() => setBannerIndex(i => (i + 1) % banners.length), 4000);
-    return () => clearInterval(t);
-  }, []);
-  const b = banners[bannerIndex];
+  const cardStyle = {
+    background: T.surface, border: `1px solid ${T.borderFaint}`,
+    borderRadius: "2px", overflow: "hidden", cursor: "pointer",
+    transition: "all 0.3s cubic-bezier(0.16,1,0.3,1)",
+    display: "flex", flexDirection: "column",
+  };
+
   return (
-    <div style={{ background: "#eaeded", minHeight: "100vh" }}>
-      <div style={{ background: b.bg, transition: "background 0.8s ease", padding: "60px 40px", textAlign: "center", position: "relative", overflow: "hidden" }}>
-        <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.2)" }} />
-        <div style={{ position: "relative", zIndex: 1 }}>
-          <h1 style={{ color: "white", fontSize: "clamp(24px, 4vw, 48px)", fontWeight: 800, margin: "0 0 12px", fontFamily: "Georgia, serif" }}>{b.text}</h1>
-          <p style={{ color: "rgba(255,255,255,0.9)", fontSize: "18px", margin: "0 0 24px" }}>{b.sub}</p>
-          <button onClick={() => onNavigate("products")}
-            style={{ background: "#ff9900", color: "#131921", border: "none", padding: "14px 32px", borderRadius: "24px", fontSize: "16px", fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 20px rgba(255,153,0,0.5)" }}>
-            {b.btn} →
-          </button>
-        </div>
-        <div style={{ position: "absolute", bottom: "16px", left: "50%", transform: "translateX(-50%)", display: "flex", gap: "8px" }}>
-          {banners.map((_, i) => <div key={i} onClick={() => setBannerIndex(i)}
-            style={{ width: i === bannerIndex ? "24px" : "8px", height: "8px", borderRadius: "4px", background: i === bannerIndex ? "white" : "rgba(255,255,255,0.5)", cursor: "pointer", transition: "all 0.3s" }} />)}
-        </div>
+    <div style={cardStyle}
+      onMouseEnter={e => { e.currentTarget.style.border = `1px solid ${T.border}`; e.currentTarget.style.transform = "translateY(-4px)"; }}
+      onMouseLeave={e => { e.currentTarget.style.border = `1px solid ${T.borderFaint}`; e.currentTarget.style.transform = "translateY(0)"; }}>
+      {/* Image */}
+      <div style={{ position: "relative", paddingTop: "100%", overflow: "hidden", background: T.surface2 }}
+        onClick={() => onProductClick(product)}>
+        <img src={product.imageUrl} alt={product.name}
+          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", transition: "transform 0.5s ease" }}
+          onMouseEnter={e => e.currentTarget.style.transform = "scale(1.06)"}
+          onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
+          onError={e => { e.target.style.display = "none"; }} />
+        {product.stock < 10 && product.stock > 0 && (
+          <span style={{ position: "absolute", top: "10px", left: "10px", background: T.gold, color: "#0A0A0A", fontSize: "9px", fontWeight: 700, padding: "3px 7px", borderRadius: "1px", letterSpacing: "0.5px" }}>LOW STOCK</span>
+        )}
       </div>
-      <div style={{ maxWidth: "1400px", margin: "0 auto", padding: "20px 16px" }}>
-        <div style={{ background: "white", borderRadius: "8px", padding: "20px", marginBottom: "20px" }}>
-          <h2 style={{ fontSize: "20px", fontWeight: 700, margin: "0 0 16px", fontFamily: "Georgia, serif" }}>Shop by Category</h2>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: "12px" }}>
-            {CATEGORIES.map(cat => (
-              <div key={cat.id} onClick={() => onNavigate("products", cat.name)}
-                style={{ background: cat.color, borderRadius: "8px", padding: "20px 12px", textAlign: "center", cursor: "pointer", transition: "transform 0.2s, box-shadow 0.2s" }}
-                onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-4px)"; e.currentTarget.style.boxShadow = "0 8px 20px rgba(0,0,0,0.1)"; }}
-                onMouseLeave={e => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = ""; }}>
-                <div style={{ fontSize: "36px", marginBottom: "8px" }}>{cat.icon}</div>
-                <div style={{ fontSize: "13px", fontWeight: 600, color: "#333" }}>{cat.name}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div style={{ background: "white", borderRadius: "8px", padding: "20px", marginBottom: "20px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-            <h2 style={{ fontSize: "20px", fontWeight: 700, margin: 0, fontFamily: "Georgia, serif" }}>Best Sellers</h2>
-            <span onClick={() => onNavigate("products")} style={{ color: "#007185", cursor: "pointer", fontSize: "14px" }}>See all →</span>
-          </div>
-          {products.length === 0 ? <Spinner /> : (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: "16px" }}>
-              {products.slice(0, 6).map(p => (
-                <ProductCard key={p.id} product={p} onAddToCart={onAddToCart} onClick={() => onProductClick(p)} cartItem={cart.find(i => i.id === p.id)} onRemoveFromCart={onRemoveFromCart} />
-              ))}
+
+      {/* Info */}
+      <div style={{ padding: "14px", flex: 1, display: "flex", flexDirection: "column", gap: "6px" }}>
+        <div style={{ fontSize: "10px", color: T.gold, letterSpacing: "1.5px", textTransform: "uppercase" }}>{product.brand}</div>
+        <div onClick={() => onProductClick(product)} style={{ fontSize: "13px", fontWeight: 500, color: T.text, lineHeight: "1.4", cursor: "pointer" }}>{product.name}</div>
+        <Stars rating={product.rating || 0} />
+        <div style={{ fontSize: "10px", color: T.textFaint }}>{product.numReviews?.toLocaleString()} reviews</div>
+        <div style={{ marginTop: "auto", paddingTop: "8px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <span style={{ fontFamily: SERIF, fontSize: "16px", color: T.gold }}>₹{product.price?.toLocaleString("en-IN")}</span>
+          {qty === 0 ? (
+            <GoldBtn small onClick={e => { e.stopPropagation(); onAddToCart(product); }}>+ Add</GoldBtn>
+          ) : (
+            <div style={{ display: "flex", alignItems: "center", gap: "0", border: `1px solid ${T.border}`, borderRadius: "2px", overflow: "hidden" }}>
+              {qty === 1
+                ? <button onClick={e => { e.stopPropagation(); onRemoveFromCart(cartItem.cartItemId); }}
+                    style={{ background: "none", border: "none", color: T.textMuted, padding: "5px 10px", cursor: "pointer", fontSize: "12px" }}>🗑</button>
+                : <button onClick={e => { e.stopPropagation(); onRemoveFromCart(cartItem.cartItemId); }}
+                    style={{ background: "none", border: "none", color: T.textMuted, padding: "5px 10px", cursor: "pointer", fontSize: "14px" }}>−</button>}
+              <span style={{ padding: "5px 10px", fontSize: "13px", color: T.text, minWidth: "28px", textAlign: "center" }}>{qty}</span>
+              <button onClick={e => { e.stopPropagation(); if (qty < 5) onAddToCart(product); }}
+                style={{ background: qty >= 5 ? "none" : T.gold, border: "none", color: qty >= 5 ? T.textFaint : "#0A0A0A", padding: "5px 10px", cursor: qty >= 5 ? "default" : "pointer", fontSize: "14px", fontWeight: 700 }}>+</button>
             </div>
           )}
         </div>
-        <div style={{ background: "linear-gradient(135deg, #0f2942, #1a4a7a)", borderRadius: "8px", padding: "32px", textAlign: "center", color: "white", marginBottom: "20px" }}>
-          <div style={{ fontSize: "32px", marginBottom: "8px" }}>👑</div>
-          <h2 style={{ fontSize: "24px", fontWeight: 800, margin: "0 0 8px", fontFamily: "Georgia, serif" }}>Try Amazon Prime</h2>
-          <p style={{ color: "rgba(255,255,255,0.8)", margin: "0 0 20px" }}>Free fast delivery, exclusive deals & more</p>
-          <button style={{ background: "#ff9900", color: "#131921", border: "none", padding: "12px 28px", borderRadius: "24px", fontSize: "15px", fontWeight: 700, cursor: "pointer" }}>
-            Start Free Trial
-          </button>
-        </div>
       </div>
-      <footer style={{ background: "#232f3e", color: "white", padding: "40px 20px", marginTop: "20px" }}>
-        <div style={{ maxWidth: "1400px", margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "24px" }}>
-          {[
-            { title: "Get to Know Us", links: ["Careers", "Blog", "About Amazon", "Sustainability"] },
-            { title: "Make Money with Us", links: ["Sell on Amazon", "Become Affiliate", "Advertise"] },
-            { title: "Amazon Payment", links: ["Amazon Pay", "Gift Cards", "Amazon Cash"] },
-            { title: "Let Us Help You", links: ["Your Account", "Your Orders", "Returns & Replacements"] },
-          ].map(col => (
-            <div key={col.title}>
-              <h4 style={{ margin: "0 0 12px", fontSize: "14px", fontWeight: 700 }}>{col.title}</h4>
-              {col.links.map(l => <div key={l} style={{ fontSize: "13px", color: "#ccc", marginBottom: "6px", cursor: "pointer" }}>{l}</div>)}
+    </div>
+  );
+};
+
+// ── HomePage ──────────────────────────────────────────────────────────────────
+const HomePage = ({ onNavigate, onAddToCart, onProductClick, products, cart, onRemoveFromCart }) => {
+  const featured = products.slice(0, 8);
+
+  return (
+    <div style={{ background: T.bg }}>
+      {/* Hero */}
+      <div style={{ position: "relative", height: "88vh", overflow: "hidden", display: "flex", alignItems: "center" }}>
+        <img src="https://picsum.photos/seed/luxhero2024/1600/900" alt="hero"
+          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", filter: "brightness(0.35)" }} />
+        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to right, rgba(10,10,10,0.9) 40%, transparent)" }} />
+        <div className="fade-in" style={{ position: "relative", maxWidth: "600px", padding: "0 80px" }}>
+          <div style={{ fontSize: "11px", color: T.gold, letterSpacing: "3px", marginBottom: "20px", textTransform: "uppercase" }}>New Season 2024</div>
+          <h1 style={{ fontFamily: SERIF, fontSize: "clamp(40px, 6vw, 72px)", fontWeight: 700, lineHeight: 1.1, color: T.text, marginBottom: "20px" }}>
+            The Art of<br /><em style={{ color: T.gold }}>Smart Shopping</em>
+          </h1>
+          <p style={{ fontSize: "15px", color: T.textMuted, lineHeight: 1.7, marginBottom: "36px", maxWidth: "420px" }}>
+            Discover curated collections across Electronics, Fashion, Home & more — delivered to your door.
+          </p>
+          <div style={{ display: "flex", gap: "14px" }}>
+            <GoldBtn onClick={() => onNavigate("products")}>Shop Now</GoldBtn>
+            <GoldBtn outline onClick={() => onNavigate("products")}>View Collections</GoldBtn>
+          </div>
+        </div>
+        {/* Stats */}
+        <div style={{ position: "absolute", bottom: "40px", left: "80px", display: "flex", gap: "48px" }}>
+          {[["2,000+","Products"],["10","Categories"],["Free","Delivery"]].map(([num, label]) => (
+            <div key={label}>
+              <div style={{ fontFamily: SERIF, fontSize: "28px", color: T.gold }}>{num}</div>
+              <div style={{ fontSize: "11px", color: T.textMuted, letterSpacing: "1px", textTransform: "uppercase" }}>{label}</div>
             </div>
           ))}
         </div>
-        <div style={{ textAlign: "center", marginTop: "32px", paddingTop: "20px", borderTop: "1px solid #3d4f5c", fontSize: "13px", color: "#aaa" }}>
-          <span style={{ fontSize: "20px", fontWeight: 800, fontFamily: "Georgia, serif", color: "white" }}>amazon</span>
-          <span style={{ color: "#ff9900", fontSize: "20px" }}>.</span>
-          <div style={{ marginTop: "8px" }}>© 2025 Prime Deals. Built with React + Spring Boot.</div>
+      </div>
+
+      {/* Categories */}
+      <div style={{ padding: "80px 60px" }}>
+        <div style={{ textAlign: "center", marginBottom: "48px" }}>
+          <div style={{ fontSize: "11px", color: T.gold, letterSpacing: "3px", marginBottom: "12px" }}>BROWSE BY</div>
+          <h2 style={{ fontFamily: SERIF, fontSize: "36px", color: T.text }}>Collections</h2>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "16px" }}>
+          {CATEGORIES.slice(0, 5).map(cat => (
+            <div key={cat.id} onClick={() => onNavigate("products", cat.name)}
+              style={{ position: "relative", height: "220px", overflow: "hidden", cursor: "pointer", borderRadius: "2px" }}
+              onMouseEnter={e => e.currentTarget.querySelector("img").style.transform = "scale(1.08)"}
+              onMouseLeave={e => e.currentTarget.querySelector("img").style.transform = "scale(1)"}>
+              <img src={cat.img} alt={cat.name} style={{ width: "100%", height: "100%", objectFit: "cover", filter: "brightness(0.45)", transition: "transform 0.5s ease" }} />
+              <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(10,10,10,0.85), transparent)" }} />
+              <div style={{ position: "absolute", bottom: "16px", left: "16px" }}>
+                <div style={{ fontFamily: SERIF, fontSize: "15px", color: T.text, fontWeight: 600 }}>{cat.name}</div>
+                <div style={{ fontSize: "10px", color: T.gold, letterSpacing: "1px", marginTop: "2px" }}>EXPLORE →</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <Divider style={{ margin: "0 60px" }} />
+
+      {/* Featured Products */}
+      <div style={{ padding: "80px 60px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: "40px" }}>
+          <div>
+            <div style={{ fontSize: "11px", color: T.gold, letterSpacing: "3px", marginBottom: "10px" }}>HANDPICKED</div>
+            <h2 style={{ fontFamily: SERIF, fontSize: "36px", color: T.text }}>Featured Products</h2>
+          </div>
+          <GoldBtn outline small onClick={() => onNavigate("products")}>View All →</GoldBtn>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "20px" }}>
+          {featured.map(p => (
+            <ProductCard key={p.id} product={p} onProductClick={onProductClick} onAddToCart={onAddToCart} cart={cart} onRemoveFromCart={onRemoveFromCart} />
+          ))}
+        </div>
+      </div>
+
+      {/* Heritage Banner */}
+      <div style={{ margin: "0 60px 80px", position: "relative", height: "300px", overflow: "hidden", borderRadius: "2px" }}>
+        <img src="https://picsum.photos/seed/heritage2024/1400/400" alt="banner"
+          style={{ width: "100%", height: "100%", objectFit: "cover", filter: "brightness(0.3)" }} />
+        <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center" }}>
+          <div style={{ fontSize: "11px", color: T.gold, letterSpacing: "3px", marginBottom: "16px" }}>THE INNER CIRCLE</div>
+          <h2 style={{ fontFamily: SERIF, fontSize: "36px", color: T.text, marginBottom: "12px" }}>Exclusive Member Benefits</h2>
+          <p style={{ color: T.textMuted, marginBottom: "28px", maxWidth: "400px" }}>Free delivery, early access to deals, and members-only pricing.</p>
+          <GoldBtn onClick={() => onNavigate("account")}>Join Now</GoldBtn>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <footer style={{ background: T.surface, borderTop: `1px solid ${T.border}`, padding: "60px", display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: "40px" }}>
+        <div>
+          <div style={{ fontFamily: SERIF, fontSize: "20px", color: T.text, marginBottom: "12px" }}>Prime<em style={{ color: T.gold }}>Deals</em></div>
+          <p style={{ fontSize: "13px", color: T.textMuted, lineHeight: 1.8, maxWidth: "260px" }}>Your destination for quality products at unbeatable prices across India.</p>
+        </div>
+        {[
+          { title: "SHOP", links: ["New Arrivals","Best Sellers","Collections","Sale"] },
+          { title: "ACCOUNT", links: ["Your Account","Orders","Returns","Wishlist"] },
+          { title: "HELP", links: ["Contact Us","FAQs","Shipping","Privacy Policy"] },
+        ].map(col => (
+          <div key={col.title}>
+            <div style={{ fontSize: "10px", color: T.gold, letterSpacing: "2px", marginBottom: "16px" }}>{col.title}</div>
+            {col.links.map(l => (
+              <div key={l} style={{ fontSize: "13px", color: T.textMuted, marginBottom: "10px", cursor: "pointer", transition: "color 0.2s" }}
+                onMouseEnter={e => e.currentTarget.style.color = T.text}
+                onMouseLeave={e => e.currentTarget.style.color = T.textMuted}>{l}</div>
+            ))}
+          </div>
+        ))}
+        <div style={{ gridColumn: "1/-1", borderTop: `1px solid ${T.borderFaint}`, paddingTop: "24px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span style={{ fontSize: "12px", color: T.textFaint }}>© 2024 PrimeDeals. All rights reserved.</span>
+          <span style={{ fontSize: "12px", color: T.textFaint }}>Made in India 🇮🇳</span>
         </div>
       </footer>
     </div>
   );
 };
 
+// ── ProductsPage ──────────────────────────────────────────────────────────────
 const ProductsPage = ({ onAddToCart, onProductClick, filterCategory, searchQuery, products, loading, cart, onRemoveFromCart, onLoadMore, hasMore }) => {
-  const [sortBy, setSortBy] = useState("featured");
+  const [sortBy, setSortBy]       = useState("featured");
   const [selectedCat, setSelectedCat] = useState(filterCategory || "All");
+  useEffect(() => { if (filterCategory) setSelectedCat(filterCategory); }, [filterCategory]);
+
   let filtered = products;
   if (selectedCat !== "All") filtered = filtered.filter(p => p.category === selectedCat);
   if (searchQuery) filtered = filtered.filter(p =>
-    p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    p.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     p.category?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    p.brand?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-  if (sortBy === "price-asc") filtered = [...filtered].sort((a, b) => a.price - b.price);
-  if (sortBy === "price-desc") filtered = [...filtered].sort((a, b) => b.price - a.price);
-  if (sortBy === "rating") filtered = [...filtered].sort((a, b) => (b.rating || 0) - (a.rating || 0));
+    p.brand?.toLowerCase().includes(searchQuery.toLowerCase()));
+  if (sortBy === "low")   filtered = [...filtered].sort((a, b) => a.price - b.price);
+  if (sortBy === "high")  filtered = [...filtered].sort((a, b) => b.price - a.price);
+  if (sortBy === "rated") filtered = [...filtered].sort((a, b) => b.rating - a.rating);
+
+  const cats = ["All", ...CATEGORIES.map(c => c.name)];
+
   return (
-    <div style={{ background: "#eaeded", minHeight: "100vh" }}>
-      <div style={{ maxWidth: "1400px", margin: "0 auto", padding: "20px 16px", display: "flex", gap: "20px" }}>
-        <div style={{ width: "220px", flexShrink: 0 }}>
-          <div style={{ background: "white", borderRadius: "8px", padding: "16px", marginBottom: "16px" }}>
-            <h3 style={{ margin: "0 0 12px", fontSize: "16px", fontWeight: 700 }}>Department</h3>
-            {["All", ...CATEGORIES.map(c => c.name)].map(cat => (
-              <div key={cat} onClick={() => setSelectedCat(cat)}
-                style={{ padding: "4px 0", fontSize: "14px", cursor: "pointer", color: selectedCat === cat ? "#c45500" : "#007185", fontWeight: selectedCat === cat ? 700 : 400 }}>
-                {cat}
-              </div>
-            ))}
-          </div>
-          <div style={{ background: "white", borderRadius: "8px", padding: "16px" }}>
-            <h3 style={{ margin: "0 0 12px", fontSize: "16px", fontWeight: 700 }}>Sort By</h3>
-            {[["featured", "Featured"], ["price-asc", "Price: Low to High"], ["price-desc", "Price: High to Low"], ["rating", "Top Rated"]].map(([val, label]) => (
-              <div key={val} onClick={() => setSortBy(val)}
-                style={{ padding: "4px 0", fontSize: "14px", cursor: "pointer", color: sortBy === val ? "#c45500" : "#007185", fontWeight: sortBy === val ? 700 : 400 }}>
-                {label}
-              </div>
-            ))}
-          </div>
+    <div style={{ background: T.bg, minHeight: "100vh", padding: "0 60px 60px" }}>
+      {/* Header */}
+      <div style={{ padding: "40px 0 32px", borderBottom: `1px solid ${T.borderFaint}`, marginBottom: "32px" }}>
+        {searchQuery
+          ? <h1 style={{ fontFamily: SERIF, fontSize: "28px", color: T.text }}>Results for "<span style={{ color: T.gold }}>{searchQuery}</span>"</h1>
+          : <h1 style={{ fontFamily: SERIF, fontSize: "28px", color: T.text }}>{selectedCat === "All" ? "All Products" : selectedCat}</h1>}
+        <div style={{ fontSize: "13px", color: T.textMuted, marginTop: "6px" }}>{filtered.length} products</div>
+      </div>
+
+      <div style={{ display: "flex", gap: "32px" }}>
+        {/* Sidebar */}
+        <div style={{ width: "200px", flexShrink: 0 }}>
+          <div style={{ fontSize: "10px", color: T.gold, letterSpacing: "2px", marginBottom: "16px" }}>CATEGORIES</div>
+          {cats.map(c => (
+            <div key={c} onClick={() => setSelectedCat(c)}
+              style={{ padding: "9px 0", fontSize: "13px", cursor: "pointer", color: selectedCat === c ? T.gold : T.textMuted, borderLeft: `2px solid ${selectedCat === c ? T.gold : "transparent"}`, paddingLeft: "12px", marginBottom: "2px", transition: "all 0.2s" }}
+              onMouseEnter={e => { if (selectedCat !== c) e.currentTarget.style.color = T.text; }}
+              onMouseLeave={e => { if (selectedCat !== c) e.currentTarget.style.color = T.textMuted; }}>{c}</div>
+          ))}
+          <Divider style={{ margin: "20px 0" }} />
+          <div style={{ fontSize: "10px", color: T.gold, letterSpacing: "2px", marginBottom: "16px" }}>SORT BY</div>
+          {[["featured","Featured"],["low","Price: Low"],["high","Price: High"],["rated","Top Rated"]].map(([val, label]) => (
+            <div key={val} onClick={() => setSortBy(val)}
+              style={{ padding: "9px 0 9px 12px", fontSize: "13px", cursor: "pointer", color: sortBy === val ? T.gold : T.textMuted, borderLeft: `2px solid ${sortBy === val ? T.gold : "transparent"}`, marginBottom: "2px", transition: "all 0.2s" }}>{label}</div>
+          ))}
         </div>
+
+        {/* Grid */}
         <div style={{ flex: 1 }}>
-          <div style={{ background: "white", borderRadius: "8px", padding: "12px 16px", marginBottom: "16px" }}>
-            <div style={{ fontSize: "14px", color: "#555" }}>
-              {searchQuery && <><b>Results for "{searchQuery}"</b> · </>}
-              <b>{filtered.length}</b> results
+          {loading ? (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "20px" }}>
+              {Array(8).fill(0).map((_, i) => (
+                <div key={i} style={{ background: T.surface, height: "320px", borderRadius: "2px", background: `linear-gradient(90deg, ${T.surface} 25%, ${T.surface2} 50%, ${T.surface} 75%)`, backgroundSize: "200% 100%", animation: "shimmer 1.5s infinite" }} />
+              ))}
             </div>
-          </div>
-          {loading ? <Spinner /> : (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "16px" }}>
-              {filtered.map(p => <ProductCard key={p.id} product={p} onAddToCart={onAddToCart} onClick={() => onProductClick(p)} cartItem={cart.find(i => i.id === p.id)} onRemoveFromCart={onRemoveFromCart} />)}
-              {filtered.length === 0 && (
-                <div style={{ gridColumn: "1/-1", textAlign: "center", padding: "60px", color: "#888" }}>
-                  <div style={{ fontSize: "48px" }}>🔍</div>
-                  <p>No products found. Try a different search or category.</p>
+          ) : filtered.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "100px 0", color: T.textMuted }}>
+              <div style={{ fontSize: "48px", marginBottom: "16px" }}>🔍</div>
+              <div style={{ fontFamily: SERIF, fontSize: "24px", color: T.text, marginBottom: "8px" }}>No products found</div>
+              <div style={{ fontSize: "14px" }}>Try a different search or category</div>
+            </div>
+          ) : (
+            <>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "20px" }}>
+                {filtered.map(p => (
+                  <ProductCard key={p.cartItemId || p.id} product={p} onProductClick={onProductClick} onAddToCart={onAddToCart} cart={cart} onRemoveFromCart={onRemoveFromCart} />
+                ))}
+              </div>
+              {!searchQuery && hasMore && (
+                <div style={{ textAlign: "center", marginTop: "48px" }}>
+                  <GoldBtn outline onClick={onLoadMore}>Load More Products</GoldBtn>
                 </div>
               )}
-            </div>
-          )}
-          {!searchQuery && !filterCategory && hasMore && (
-            <div style={{ textAlign: "center", padding: "24px 0" }}>
-              <button onClick={onLoadMore}
-                style={{ background: "#ff9900", border: "none", borderRadius: "4px", padding: "10px 32px", fontSize: "14px", fontWeight: 600, cursor: "pointer" }}>
-                Load More Products
-              </button>
-            </div>
+            </>
           )}
         </div>
       </div>
@@ -387,755 +444,622 @@ const ProductsPage = ({ onAddToCart, onProductClick, filterCategory, searchQuery
   );
 };
 
+// ── ProductDetailPage ─────────────────────────────────────────────────────────
 const ProductDetailPage = ({ product, onAddToCart, onNavigate }) => {
   const [qty, setQty] = useState(1);
   const [added, setAdded] = useState(false);
-  const handleAdd = () => {
-    for (let i = 0; i < qty; i++) onAddToCart(product);
-    setAdded(true);
-    setTimeout(() => setAdded(false), 2000);
-  };
+  const handleAdd = () => { for (let i = 0; i < qty; i++) onAddToCart(product); setAdded(true); setTimeout(() => setAdded(false), 2000); };
+
   return (
-    <div style={{ background: "#eaeded", minHeight: "100vh" }}>
-      <div style={{ maxWidth: "1400px", margin: "0 auto", padding: "20px 16px" }}>
-        <div style={{ fontSize: "13px", color: "#007185", marginBottom: "16px" }}>
-          <span onClick={() => onNavigate("home")} style={{ cursor: "pointer" }}>Home</span> &gt;{" "}
-          <span onClick={() => onNavigate("products")} style={{ cursor: "pointer" }}>{product.category}</span> &gt;{" "}
-          <span style={{ color: "#555" }}>{product.name}</span>
+    <div style={{ background: T.bg, minHeight: "100vh", padding: "60px" }}>
+      <div style={{ color: T.textMuted, fontSize: "13px", marginBottom: "32px", cursor: "pointer" }} onClick={() => onNavigate("products")}>← Back to Products</div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "60px", maxWidth: "1100px" }}>
+        {/* Image */}
+        <div style={{ background: T.surface, borderRadius: "2px", overflow: "hidden", aspectRatio: "1" }}>
+          <img src={product.imageUrl} alt={product.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={e => e.target.style.display = "none"} />
         </div>
-        <div style={{ background: "white", borderRadius: "8px", padding: "24px", display: "flex", gap: "32px", flexWrap: "wrap" }}>
-          <div style={{ width: "320px", flexShrink: 0, textAlign: "center" }}>
-            <div style={{ fontSize: "100px", padding: "40px", background: "#f8f8f8", borderRadius: "8px" }}>
-              {getIcon(product.category)}
+        {/* Info */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+          <div>
+            <div style={{ fontSize: "11px", color: T.gold, letterSpacing: "2px", textTransform: "uppercase", marginBottom: "8px" }}>{product.brand} · {product.category}</div>
+            <h1 style={{ fontFamily: SERIF, fontSize: "32px", color: T.text, lineHeight: 1.2, marginBottom: "16px" }}>{product.name}</h1>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <Stars rating={product.rating} />
+              <span style={{ fontSize: "13px", color: T.textMuted }}>{product.numReviews?.toLocaleString()} reviews</span>
             </div>
           </div>
-          <div style={{ flex: 1, minWidth: "280px" }}>
-            <h1 style={{ fontSize: "22px", fontWeight: 400, margin: "0 0 4px", fontFamily: "Georgia, serif", lineHeight: 1.4 }}>{product.name}</h1>
-            <div style={{ color: "#888", fontSize: "13px", marginBottom: "8px" }}>by {product.brand}</div>
-            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
-              <Stars rating={product.rating || 0} />
-              <span style={{ color: "#007185", fontSize: "13px" }}>{product.numReviews || 0} ratings</span>
+          <Divider />
+          <div style={{ fontFamily: SERIF, fontSize: "36px", color: T.gold }}>₹{product.price?.toLocaleString("en-IN")}</div>
+          <p style={{ fontSize: "14px", color: T.textMuted, lineHeight: 1.8 }}>{product.description}</p>
+          <Divider />
+          <div style={{ fontSize: "13px", color: product.stock > 0 ? T.green : T.red }}>{product.stock > 0 ? `✓ In Stock (${product.stock} left)` : "Out of Stock"}</div>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <div style={{ display: "flex", alignItems: "center", border: `1px solid ${T.border}`, borderRadius: "2px" }}>
+              <button onClick={() => setQty(q => Math.max(1, q - 1))} style={{ background: "none", border: "none", color: T.textMuted, padding: "10px 16px", cursor: "pointer", fontSize: "16px" }}>−</button>
+              <span style={{ padding: "10px 16px", color: T.text, fontSize: "14px", minWidth: "40px", textAlign: "center" }}>{qty}</span>
+              <button onClick={() => setQty(q => Math.min(product.stock, q + 1))} style={{ background: "none", border: "none", color: T.textMuted, padding: "10px 16px", cursor: "pointer", fontSize: "16px" }}>+</button>
             </div>
-            <hr style={{ border: "none", borderTop: "1px solid #e3e6e6", margin: "12px 0" }} />
-            <div style={{ fontSize: "28px", fontWeight: 700, color: "#cc0c39", marginBottom: "8px" }}>₹{product.price?.toLocaleString()}</div>
-            <div style={{ color: "#007185", fontSize: "13px", fontWeight: 600, marginBottom: "12px" }}>✓ FREE Delivery by Prime</div>
-            <p style={{ fontSize: "14px", color: "#333", lineHeight: 1.6, marginBottom: "16px" }}>{product.description}</p>
-            <div style={{ color: "#007b23", fontWeight: 600, fontSize: "14px", marginBottom: "16px" }}>In Stock ({product.stock} left)</div>
-            <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
-              <span style={{ fontSize: "14px" }}>Qty:</span>
-              <select value={qty} onChange={e => setQty(Number(e.target.value))}
-                style={{ padding: "6px 10px", border: "1px solid #ddd", borderRadius: "6px", fontSize: "14px" }}>
-                {[1, 2, 3, 4, 5].map(n => <option key={n} value={n}>{n}</option>)}
-              </select>
-            </div>
-            <div style={{ display: "flex", gap: "12px" }}>
-              <button onClick={handleAdd}
-                style={{ background: added ? "#5cb85c" : "#ff9900", color: added ? "white" : "#131921", border: "none", padding: "12px 28px", borderRadius: "24px", fontSize: "15px", fontWeight: 700, cursor: "pointer", transition: "all 0.2s" }}>
-                {added ? "✓ Added!" : "Add to Cart"}
-              </button>
-              <button style={{ background: "#ffb703", color: "#131921", border: "none", padding: "12px 28px", borderRadius: "24px", fontSize: "15px", fontWeight: 700, cursor: "pointer" }}>
-                Buy Now
-              </button>
-            </div>
+            <GoldBtn onClick={handleAdd} style={{ flex: 1 }}>{added ? "✓ Added to Cart" : "Add to Cart"}</GoldBtn>
           </div>
+          <div style={{ fontSize: "12px", color: T.textMuted }}>✈️ Free Prime delivery available</div>
         </div>
       </div>
     </div>
   );
 };
 
+// ── CartPage ──────────────────────────────────────────────────────────────────
 const CartPage = ({ cart, onRemove, onUpdateQty, onNavigate }) => {
-  const total = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
-  const itemCount = cart.reduce((sum, item) => sum + item.qty, 0);
-  if (cart.length === 0) return (
-    <div style={{ background: "#eaeded", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div style={{ background: "white", borderRadius: "8px", padding: "60px", textAlign: "center" }}>
-        <div style={{ fontSize: "64px", marginBottom: "16px" }}>🛒</div>
-        <h2 style={{ fontFamily: "Georgia, serif", margin: "0 0 12px" }}>Your Cart is empty</h2>
-        <p style={{ color: "#555", marginBottom: "24px" }}>Add items to get started</p>
-        <button onClick={() => onNavigate("products")}
-          style={{ background: "#ff9900", border: "none", padding: "12px 28px", borderRadius: "24px", fontSize: "15px", fontWeight: 700, cursor: "pointer" }}>
-          Continue Shopping
-        </button>
-      </div>
-    </div>
-  );
+  const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
   return (
-    <div style={{ background: "#eaeded", minHeight: "100vh" }}>
-      <div style={{ maxWidth: "1400px", margin: "0 auto", padding: "20px 16px", display: "flex", gap: "20px", flexWrap: "wrap" }}>
-        <div style={{ flex: 1, minWidth: "300px" }}>
-          <div style={{ background: "white", borderRadius: "8px", padding: "20px" }}>
-            <h1 style={{ fontSize: "24px", fontWeight: 400, margin: "0 0 4px", fontFamily: "Georgia, serif" }}>Shopping Cart</h1>
-            <hr style={{ border: "none", borderTop: "1px solid #e3e6e6", margin: "12px 0" }} />
+    <div style={{ background: T.bg, minHeight: "100vh", padding: "60px" }}>
+      <h1 style={{ fontFamily: SERIF, fontSize: "32px", color: T.text, marginBottom: "8px" }}>Your Cart</h1>
+      <div style={{ fontSize: "13px", color: T.textMuted, marginBottom: "40px" }}>{cart.length} item{cart.length !== 1 ? "s" : ""}</div>
+      {cart.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "80px 0" }}>
+          <div style={{ fontFamily: SERIF, fontSize: "24px", color: T.text, marginBottom: "12px" }}>Your cart is empty</div>
+          <div style={{ color: T.textMuted, marginBottom: "28px" }}>Discover our curated collections</div>
+          <GoldBtn onClick={() => onNavigate("products")}>Start Shopping</GoldBtn>
+        </div>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: "40px" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "1px" }}>
             {cart.map(item => (
-              <div key={item.cartItemId} style={{ display: "flex", gap: "16px", padding: "16px 0", borderBottom: "1px solid #e3e6e6", flexWrap: "wrap" }}>
-                <div style={{ fontSize: "52px", background: "#f8f8f8", borderRadius: "8px", padding: "12px", width: "80px", textAlign: "center", flexShrink: 0 }}>
-                  {getIcon(item.category)}
-                </div>
+              <div key={item.cartItemId || item.id} style={{ background: T.surface, padding: "20px", display: "flex", gap: "20px", alignItems: "center" }}>
+                <img src={item.imageUrl} alt={item.name} style={{ width: "80px", height: "80px", objectFit: "cover", borderRadius: "2px", background: T.surface2 }} onError={e => e.target.style.display = "none"} />
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: "16px", fontWeight: 600, marginBottom: "4px", color: "#007185" }}>{item.name}</div>
-                  <div style={{ color: "#007185", fontSize: "12px", fontWeight: 600, marginBottom: "4px" }}>✓ Prime</div>
-                  <div style={{ color: "#007b23", fontSize: "13px", marginBottom: "8px" }}>In Stock</div>
+                  <div style={{ fontSize: "10px", color: T.gold, letterSpacing: "1px", marginBottom: "4px" }}>{item.brand}</div>
+                  <div style={{ fontSize: "14px", color: T.text, marginBottom: "8px" }}>{item.name}</div>
                   <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                    <select value={item.qty} onChange={e => onUpdateQty(item.id, Number(e.target.value))}
-                      style={{ padding: "4px 8px", border: "1px solid #ddd", borderRadius: "4px", fontSize: "13px" }}>
-                      {[1, 2, 3, 4, 5].map(n => <option key={n} value={n}>{n}</option>)}
-                    </select>
-                    <span style={{ color: "#666" }}>|</span>
-                    <span onClick={() => onRemove(item.id, item.cartItemId)} style={{ color: "#c45500", fontSize: "13px", cursor: "pointer" }}>Delete</span>
+                    <div style={{ display: "flex", alignItems: "center", border: `1px solid ${T.border}`, borderRadius: "2px" }}>
+                      <button onClick={() => onUpdateQty(item.cartItemId || item.id, item.qty - 1)} style={{ background: "none", border: "none", color: T.textMuted, padding: "4px 12px", cursor: "pointer" }}>−</button>
+                      <span style={{ padding: "4px 10px", color: T.text, fontSize: "13px" }}>{item.qty}</span>
+                      <button onClick={() => onUpdateQty(item.cartItemId || item.id, item.qty + 1)} style={{ background: "none", border: "none", color: T.textMuted, padding: "4px 12px", cursor: "pointer" }}>+</button>
+                    </div>
+                    <button onClick={() => onRemove(item.cartItemId)} style={{ background: "none", border: "none", color: T.red, cursor: "pointer", fontSize: "12px" }}>Remove</button>
                   </div>
                 </div>
-                <div style={{ fontWeight: 700, fontSize: "18px" }}>₹{(item.price * item.qty).toLocaleString()}</div>
+                <div style={{ fontFamily: SERIF, fontSize: "18px", color: T.gold }}>₹{(item.price * item.qty).toLocaleString("en-IN")}</div>
               </div>
             ))}
-            <div style={{ textAlign: "right", fontSize: "18px", padding: "16px 0" }}>
-              Subtotal ({itemCount} items): <span style={{ fontWeight: 700 }}>₹{total.toLocaleString()}</span>
+          </div>
+          {/* Summary */}
+          <div style={{ background: T.surface, padding: "28px", borderRadius: "2px", border: `1px solid ${T.border}`, height: "fit-content" }}>
+            <div style={{ fontSize: "10px", color: T.gold, letterSpacing: "2px", marginBottom: "20px" }}>ORDER SUMMARY</div>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "10px", fontSize: "13px", color: T.textMuted }}>
+              <span>Subtotal</span><span style={{ color: T.text }}>₹{total.toLocaleString("en-IN")}</span>
             </div>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "10px", fontSize: "13px", color: T.textMuted }}>
+              <span>Delivery</span><span style={{ color: T.green }}>Free</span>
+            </div>
+            <Divider style={{ margin: "16px 0" }} />
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "24px" }}>
+              <span style={{ fontFamily: SERIF, fontSize: "18px", color: T.text }}>Total</span>
+              <span style={{ fontFamily: SERIF, fontSize: "22px", color: T.gold }}>₹{total.toLocaleString("en-IN")}</span>
+            </div>
+            <GoldBtn onClick={() => onNavigate("checkout")} style={{ width: "100%", textAlign: "center" }}>Proceed to Checkout</GoldBtn>
           </div>
         </div>
-        <div style={{ width: "280px", flexShrink: 0 }}>
-          <div style={{ background: "white", borderRadius: "8px", padding: "20px" }}>
-            <div style={{ color: "#007b23", fontSize: "13px", marginBottom: "12px" }}>✓ Your order qualifies for FREE Delivery</div>
-            <div style={{ fontSize: "18px", marginBottom: "16px" }}>
-              Subtotal ({itemCount} items): <span style={{ fontWeight: 700 }}>₹{total.toLocaleString()}</span>
-            </div>
-            <button onClick={() => onNavigate("checkout")}
-              style={{ width: "100%", background: "#ff9900", color: "#131921", border: "none", padding: "12px", borderRadius: "24px", fontSize: "15px", fontWeight: 700, cursor: "pointer" }}>
-              Proceed to Buy
-            </button>
-          </div>
-        </div>
-      </div>
+      )}
     </div>
   );
 };
 
+// ── LoginPage ─────────────────────────────────────────────────────────────────
 const LoginPage = ({ onLogin, onNavigate }) => {
-  const [isRegister, setIsRegister] = useState(false);
-  const [form, setForm] = useState({ name: "", email: "", password: "" });
-  const [error, setError] = useState("");
+  const [isReg, setIsReg]   = useState(false);
+  const [form, setForm]     = useState({ name: "", email: "", password: "" });
+  const [error, setError]   = useState("");
   const [loading, setLoading] = useState(false);
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
+
+  const handle = async e => {
+    e.preventDefault(); setError(""); setLoading(true);
     try {
-      if (isRegister) {
-        await api.register({ name: form.name, email: form.email, password: form.password });
-        const res = await api.login({ email: form.email, password: form.password });
-        localStorage.setItem("token", res.data.token);
-        onLogin({ name: form.name, email: form.email });
-      } else {
-        const res = await api.login({ email: form.email, password: form.password });
-        localStorage.setItem("token", res.data.token);
-        onLogin({ name: res.data.name || form.email.split("@")[0], email: form.email });
-      }
-      onNavigate("home");
+      const fn = isReg ? api.register : api.login;
+      const res = await fn(form);
+      onLogin(res.data);
     } catch (err) {
-      setError(err.response?.data?.message || "Invalid email or password. Please try again.");
-    } finally {
-      setLoading(false);
-    }
+      setError(err.response?.data?.message || (isReg ? "Registration failed" : "Invalid credentials"));
+    } finally { setLoading(false); }
   };
+
   return (
-    <div style={{ background: "#eaeded", minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "20px" }}>
-      <div onClick={() => onNavigate("home")} style={{ cursor: "pointer", marginBottom: "24px" }}>
-        <span style={{ fontSize: "28px", fontWeight: 800, fontFamily: "Georgia, serif", color: "#131921" }}>amazon</span>
-        <span style={{ color: "#ff9900", fontSize: "28px" }}>.</span>
+    <div style={{ background: T.bg, minHeight: "100vh", display: "flex" }}>
+      {/* Left image */}
+      <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
+        <img src="https://picsum.photos/seed/loginlux/800/1200" alt="" style={{ width: "100%", height: "100%", objectFit: "cover", filter: "brightness(0.4)" }} />
+        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to right, transparent, rgba(10,10,10,0.8))" }} />
+        <div style={{ position: "absolute", bottom: "60px", left: "60px" }}>
+          <div style={{ fontFamily: SERIF, fontSize: "36px", color: T.text, marginBottom: "10px" }}>Welcome to<br /><em style={{ color: T.gold }}>PrimeDeals</em></div>
+          <div style={{ color: T.textMuted, fontSize: "14px" }}>Your premium shopping destination</div>
+        </div>
       </div>
-      <div style={{ background: "white", border: "1px solid #e3e6e6", borderRadius: "8px", padding: "28px", width: "100%", maxWidth: "360px" }}>
-        <h2 style={{ margin: "0 0 20px", fontSize: "22px", fontWeight: 400, fontFamily: "Georgia, serif" }}>
-          {isRegister ? "Create Account" : "Sign in"}
-        </h2>
-        {error && (
-          <div style={{ background: "#fff5f5", border: "1px solid #f5c6c6", borderRadius: "4px", padding: "10px", fontSize: "13px", color: "#c0392b", marginBottom: "16px" }}>
-            {error}
-          </div>
-        )}
-        <form onSubmit={handleSubmit}>
-          {isRegister && (
-            <div style={{ marginBottom: "12px" }}>
-              <label style={{ display: "block", fontSize: "13px", fontWeight: 700, marginBottom: "4px" }}>Your name</label>
-              <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="First and last name"
-                style={{ width: "100%", padding: "8px", border: "1px solid #aaa", borderRadius: "4px", fontSize: "14px", boxSizing: "border-box" }} />
-            </div>
+      {/* Form */}
+      <div style={{ width: "460px", display: "flex", flexDirection: "column", justifyContent: "center", padding: "60px", background: T.surface }}>
+        <div style={{ fontFamily: SERIF, fontSize: "28px", color: T.text, marginBottom: "6px" }}>{isReg ? "Create Account" : "Welcome Back"}</div>
+        <div style={{ fontSize: "13px", color: T.textMuted, marginBottom: "36px" }}>{isReg ? "Join PrimeDeals today" : "Sign in to continue"}</div>
+
+        {error && <div style={{ background: "rgba(239,68,68,0.1)", border: `1px solid ${T.red}`, color: T.red, padding: "10px 14px", borderRadius: "2px", fontSize: "13px", marginBottom: "16px" }}>{error}</div>}
+
+        <form onSubmit={handle} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+          {isReg && (
+            <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Full Name" required
+              style={{ background: T.surface2, border: `1px solid ${T.borderFaint}`, color: T.text, padding: "12px 16px", borderRadius: "2px", fontSize: "14px", outline: "none", fontFamily: SANS }} />
           )}
-          <div style={{ marginBottom: "12px" }}>
-            <label style={{ display: "block", fontSize: "13px", fontWeight: 700, marginBottom: "4px" }}>Email</label>
-            <input value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} type="email" placeholder="Email address"
-              style={{ width: "100%", padding: "8px", border: "1px solid #aaa", borderRadius: "4px", fontSize: "14px", boxSizing: "border-box" }} />
-          </div>
-          <div style={{ marginBottom: "20px" }}>
-            <label style={{ display: "block", fontSize: "13px", fontWeight: 700, marginBottom: "4px" }}>Password</label>
-            <input value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} type="password" placeholder="At least 6 characters"
-              style={{ width: "100%", padding: "8px", border: "1px solid #aaa", borderRadius: "4px", fontSize: "14px", boxSizing: "border-box" }} />
-          </div>
-          <button type="submit" disabled={loading}
-            style={{ width: "100%", background: loading ? "#ccc" : "#ff9900", color: "#131921", border: "none", padding: "10px", borderRadius: "20px", fontSize: "14px", fontWeight: 700, cursor: loading ? "not-allowed" : "pointer" }}>
-            {loading ? "Please wait..." : isRegister ? "Create your Amazon account" : "Sign in"}
-          </button>
+          <input value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="Email address" type="email" required
+            style={{ background: T.surface2, border: `1px solid ${T.borderFaint}`, color: T.text, padding: "12px 16px", borderRadius: "2px", fontSize: "14px", outline: "none", fontFamily: SANS }} />
+          <input value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} placeholder="Password" type="password" required
+            style={{ background: T.surface2, border: `1px solid ${T.borderFaint}`, color: T.text, padding: "12px 16px", borderRadius: "2px", fontSize: "14px", outline: "none", fontFamily: SANS }} />
+          <GoldBtn style={{ width: "100%", padding: "14px", marginTop: "4px" }}>{loading ? "Please wait..." : isReg ? "Create Account" : "Sign In"}</GoldBtn>
         </form>
-        <hr style={{ border: "none", borderTop: "1px solid #e3e6e6", margin: "20px 0" }} />
-        <div style={{ textAlign: "center", fontSize: "14px" }}>
-          {isRegister ? "Already have an account?" : "New to Amazon?"}{" "}
-          <span onClick={() => { setIsRegister(!isRegister); setError(""); }} style={{ color: "#c45500", cursor: "pointer" }}>
-            {isRegister ? "Sign in" : "Create your Amazon account"}
-          </span>
+        <div style={{ marginTop: "24px", textAlign: "center", fontSize: "13px", color: T.textMuted }}>
+          {isReg ? "Already have an account? " : "New to PrimeDeals? "}
+          <span onClick={() => setIsReg(r => !r)} style={{ color: T.gold, cursor: "pointer" }}>{isReg ? "Sign in" : "Create account"}</span>
         </div>
       </div>
     </div>
   );
 };
 
+// ── CheckoutPage ──────────────────────────────────────────────────────────────
 const CheckoutPage = ({ cart, user, onNavigate, onPlaceOrder }) => {
   const [step, setStep] = useState(1);
   const [address, setAddress] = useState({ name: user?.name || "", street: "", city: "", state: "", pin: "", phone: "" });
   const [payment, setPayment] = useState("cod");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const total = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
-  const handleOrder = async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const shippingAddress = `${address.name}, ${address.street}, ${address.city}, ${address.state} - ${address.pin}`;
-      await onPlaceOrder(shippingAddress);
-      setStep(4);
-    } catch (err) {
-      setError("Failed to place order. Please try again.");
-    } finally {
-      setLoading(false);
-    }
+  const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
+  const upd = (k, v) => setAddress(a => ({ ...a, [k]: v }));
+
+  const placeOrder = async () => {
+    setLoading(true); setError("");
+    try { await onPlaceOrder(address, payment); onNavigate("orders"); }
+    catch (e) { setError(e.message || "Failed to place order"); setLoading(false); }
   };
-  if (step === 4) return (
-    <div style={{ background: "#eaeded", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div style={{ background: "white", borderRadius: "8px", padding: "60px", textAlign: "center", maxWidth: "480px" }}>
-        <div style={{ fontSize: "64px", marginBottom: "16px" }}>🎉</div>
-        <h2 style={{ color: "#007b23", fontFamily: "Georgia, serif", margin: "0 0 12px" }}>Order Placed!</h2>
-        <p style={{ color: "#555", marginBottom: "8px" }}>Thank you! Your order has been confirmed.</p>
-        <p style={{ color: "#007185", fontSize: "13px", marginBottom: "24px" }}>Estimated delivery: 2-5 business days</p>
-        <button onClick={() => onNavigate("orders")}
-          style={{ background: "#ff9900", border: "none", padding: "12px 28px", borderRadius: "24px", fontSize: "15px", fontWeight: 700, cursor: "pointer", marginRight: "12px" }}>
-          View Orders
-        </button>
-        <button onClick={() => onNavigate("home")}
-          style={{ background: "white", border: "1px solid #ddd", padding: "12px 28px", borderRadius: "24px", fontSize: "15px", cursor: "pointer" }}>
-          Continue Shopping
-        </button>
-      </div>
-    </div>
-  );
+
+  const inputStyle = { background: T.surface2, border: `1px solid ${T.borderFaint}`, color: T.text, padding: "12px 16px", borderRadius: "2px", fontSize: "14px", outline: "none", fontFamily: SANS, width: "100%" };
+  const labelStyle = { fontSize: "11px", color: T.gold, letterSpacing: "1px", marginBottom: "6px", display: "block" };
+
   return (
-    <div style={{ background: "#eaeded", minHeight: "100vh" }}>
-      <div style={{ maxWidth: "900px", margin: "0 auto", padding: "20px 16px" }}>
-        <div style={{ display: "flex", marginBottom: "20px", background: "white", borderRadius: "8px", overflow: "hidden" }}>
-          {["Address", "Payment", "Review"].map((s, i) => (
-            <div key={s} style={{ flex: 1, padding: "12px", textAlign: "center", background: step === i + 1 ? "#131921" : step > i + 1 ? "#232f3e" : "white", color: step >= i + 1 ? "white" : "#888", fontSize: "14px", fontWeight: step === i + 1 ? 700 : 400 }}>
-              {step > i + 1 ? "✓ " : ""}{i + 1}. {s}
-            </div>
-          ))}
-        </div>
-        {step === 1 && (
-          <div style={{ background: "white", borderRadius: "8px", padding: "24px" }}>
-            <h2 style={{ margin: "0 0 20px", fontFamily: "Georgia, serif" }}>Delivery Address</h2>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-              {[["Full name", "name"], ["Street address", "street"], ["City", "city"], ["State", "state"], ["PIN code", "pin"], ["Phone number", "phone"]].map(([label, key]) => (
-                <div key={key} style={{ gridColumn: key === "street" ? "1/-1" : "auto" }}>
-                  <label style={{ display: "block", fontSize: "13px", fontWeight: 700, marginBottom: "4px" }}>{label}</label>
-                  <input value={address[key]} onChange={e => setAddress({ ...address, [key]: e.target.value })}
-                    style={{ width: "100%", padding: "8px", border: "1px solid #aaa", borderRadius: "4px", fontSize: "14px", boxSizing: "border-box" }} />
+    <div style={{ background: T.bg, minHeight: "100vh", padding: "60px" }}>
+      <h1 style={{ fontFamily: SERIF, fontSize: "32px", color: T.text, marginBottom: "8px" }}>Checkout</h1>
+      <div style={{ display: "flex", gap: "8px", marginBottom: "40px" }}>
+        {["Delivery","Payment","Review"].map((s, i) => (
+          <div key={s} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <div style={{ width: "24px", height: "24px", borderRadius: "50%", background: step > i ? T.gold : step === i + 1 ? T.gold : T.surface2, color: step > i ? "#0A0A0A" : step === i + 1 ? "#0A0A0A" : T.textFaint, fontSize: "11px", fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{i + 1}</div>
+            <span style={{ fontSize: "12px", color: step === i + 1 ? T.gold : T.textMuted }}>{s}</span>
+            {i < 2 && <span style={{ color: T.borderFaint }}>—</span>}
+          </div>
+        ))}
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: "40px" }}>
+        <div style={{ background: T.surface, padding: "32px", borderRadius: "2px" }}>
+          {step === 1 && (
+            <>
+              <div style={{ fontFamily: SERIF, fontSize: "20px", color: T.text, marginBottom: "24px" }}>Delivery Address</div>
+              {error && <div style={{ color: T.red, marginBottom: "16px", fontSize: "13px" }}>{error}</div>}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                {[["Full Name","name","text"],["Phone","phone","tel"],["Street Address","street","text"],["City","city","text"],["State","state","text"],["PIN Code","pin","text"]].map(([label, key, type]) => (
+                  <div key={key} style={{ gridColumn: key === "street" ? "1/-1" : "auto" }}>
+                    <label style={labelStyle}>{label.toUpperCase()}</label>
+                    <input value={address[key]} onChange={e => upd(key, key === "phone" ? e.target.value.replace(/\D/g,"").slice(0,10) : key === "pin" ? e.target.value.replace(/\D/g,"").slice(0,6) : e.target.value)} type={type} style={inputStyle} />
+                  </div>
+                ))}
+              </div>
+              <GoldBtn onClick={() => setStep(2)} style={{ marginTop: "24px" }}>Continue to Payment</GoldBtn>
+            </>
+          )}
+          {step === 2 && (
+            <>
+              <div style={{ fontFamily: SERIF, fontSize: "20px", color: T.text, marginBottom: "24px" }}>Payment Method</div>
+              {["cod","upi","card"].map(method => (
+                <div key={method} onClick={() => setPayment(method)}
+                  style={{ display: "flex", alignItems: "center", gap: "14px", padding: "16px", marginBottom: "8px", background: payment === method ? T.goldDim : T.surface2, border: `1px solid ${payment === method ? T.gold : T.borderFaint}`, borderRadius: "2px", cursor: "pointer" }}>
+                  <div style={{ width: "18px", height: "18px", borderRadius: "50%", border: `2px solid ${payment === method ? T.gold : T.textFaint}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    {payment === method && <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: T.gold }} />}
+                  </div>
+                  <span style={{ color: T.text, fontSize: "14px" }}>{method === "cod" ? "💵 Cash on Delivery" : method === "upi" ? "📱 UPI / Google Pay" : "💳 Credit / Debit Card"}</span>
                 </div>
               ))}
-            </div>
-            <button onClick={() => setStep(2)}
-              style={{ marginTop: "20px", background: "#ff9900", color: "#131921", border: "none", padding: "12px 28px", borderRadius: "24px", fontSize: "15px", fontWeight: 700, cursor: "pointer" }}>
-              Use this address
-            </button>
-          </div>
-        )}
-        {step === 2 && (
-          <div style={{ background: "white", borderRadius: "8px", padding: "24px" }}>
-            <h2 style={{ margin: "0 0 20px", fontFamily: "Georgia, serif" }}>Payment Method</h2>
-            {[["cod", "💵", "Cash on Delivery"], ["card", "💳", "Credit / Debit Card"], ["upi", "📱", "UPI Payment"], ["netbanking", "🏦", "Net Banking"]].map(([val, icon, label]) => (
-              <label key={val} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "14px", border: `2px solid ${payment === val ? "#ff9900" : "#e3e6e6"}`, borderRadius: "8px", marginBottom: "10px", cursor: "pointer", background: payment === val ? "#fffbf0" : "white" }}>
-                <input type="radio" name="payment" value={val} checked={payment === val} onChange={() => setPayment(val)} />
-                <span style={{ fontSize: "22px" }}>{icon}</span>
-                <span style={{ fontSize: "15px", fontWeight: payment === val ? 700 : 400 }}>{label}</span>
-              </label>
-            ))}
-            <button onClick={() => setStep(3)}
-              style={{ marginTop: "8px", background: "#ff9900", color: "#131921", border: "none", padding: "12px 28px", borderRadius: "24px", fontSize: "15px", fontWeight: 700, cursor: "pointer" }}>
-              Use this payment method
-            </button>
-          </div>
-        )}
-        {step === 3 && (
-          <div style={{ background: "white", borderRadius: "8px", padding: "24px" }}>
-            <h2 style={{ margin: "0 0 20px", fontFamily: "Georgia, serif" }}>Review your order</h2>
-            {error && <div style={{ background: "#fff5f5", border: "1px solid #f5c6c6", borderRadius: "4px", padding: "10px", color: "#c0392b", marginBottom: "16px" }}>{error}</div>}
-            {cart.map(item => (
-              <div key={item.id} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid #e3e6e6" }}>
-                <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-                  <span style={{ fontSize: "28px" }}>{getIcon(item.category)}</span>
-                  <div>
-                    <div style={{ fontSize: "14px", fontWeight: 600 }}>{item.name}</div>
-                    <div style={{ fontSize: "12px", color: "#888" }}>Qty: {item.qty}</div>
-                  </div>
-                </div>
-                <div style={{ fontWeight: 700 }}>₹{(item.price * item.qty).toLocaleString()}</div>
+              <div style={{ display: "flex", gap: "12px", marginTop: "24px" }}>
+                <GoldBtn outline onClick={() => setStep(1)}>Back</GoldBtn>
+                <GoldBtn onClick={() => setStep(3)}>Continue to Review</GoldBtn>
               </div>
-            ))}
-            <div style={{ textAlign: "right", padding: "16px 0", fontSize: "18px" }}>
-              Order Total: <span style={{ fontWeight: 700 }}>₹{total.toLocaleString()}</span>
+            </>
+          )}
+          {step === 3 && (
+            <>
+              <div style={{ fontFamily: SERIF, fontSize: "20px", color: T.text, marginBottom: "24px" }}>Review Order</div>
+              <div style={{ background: T.surface2, padding: "16px", borderRadius: "2px", marginBottom: "16px" }}>
+                <div style={{ fontSize: "10px", color: T.gold, letterSpacing: "1px", marginBottom: "8px" }}>DELIVERY TO</div>
+                <div style={{ fontSize: "13px", color: T.text }}>{address.name}, {address.phone}</div>
+                <div style={{ fontSize: "13px", color: T.textMuted }}>{address.street}, {address.city}, {address.state} - {address.pin}</div>
+              </div>
+              <div style={{ background: T.surface2, padding: "16px", borderRadius: "2px", marginBottom: "24px" }}>
+                <div style={{ fontSize: "10px", color: T.gold, letterSpacing: "1px", marginBottom: "8px" }}>PAYMENT</div>
+                <div style={{ fontSize: "13px", color: T.text }}>{payment === "cod" ? "Cash on Delivery" : payment === "upi" ? "UPI Payment" : "Card Payment"}</div>
+              </div>
+              {error && <div style={{ color: T.red, marginBottom: "16px", fontSize: "13px" }}>{error}</div>}
+              <div style={{ display: "flex", gap: "12px" }}>
+                <GoldBtn outline onClick={() => setStep(2)}>Back</GoldBtn>
+                <GoldBtn onClick={placeOrder}>{loading ? "Placing..." : "Place Order"}</GoldBtn>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Order Summary */}
+        <div style={{ background: T.surface, padding: "24px", borderRadius: "2px", border: `1px solid ${T.border}`, height: "fit-content" }}>
+          <div style={{ fontSize: "10px", color: T.gold, letterSpacing: "2px", marginBottom: "16px" }}>ORDER SUMMARY</div>
+          {cart.map(item => (
+            <div key={item.cartItemId || item.id} style={{ display: "flex", justifyContent: "space-between", marginBottom: "10px" }}>
+              <div style={{ fontSize: "12px", color: T.textMuted, flex: 1, marginRight: "8px" }}>{item.name} ×{item.qty}</div>
+              <div style={{ fontSize: "12px", color: T.text }}>₹{(item.price * item.qty).toLocaleString("en-IN")}</div>
             </div>
-            <button onClick={handleOrder} disabled={loading}
-              style={{ width: "100%", background: loading ? "#ccc" : "#ff9900", color: "#131921", border: "none", padding: "14px", borderRadius: "24px", fontSize: "16px", fontWeight: 700, cursor: loading ? "not-allowed" : "pointer" }}>
-              {loading ? "Placing order..." : "Place your order"}
-            </button>
+          ))}
+          <Divider style={{ margin: "14px 0" }} />
+          <div style={{ display: "flex", justifyContent: "space-between" }}>
+            <span style={{ fontFamily: SERIF, fontSize: "16px", color: T.text }}>Total</span>
+            <span style={{ fontFamily: SERIF, fontSize: "20px", color: T.gold }}>₹{total.toLocaleString("en-IN")}</span>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
 };
 
+// ── OrdersPage ────────────────────────────────────────────────────────────────
 const OrdersPage = ({ user, onNavigate }) => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   useEffect(() => {
-    if (!user) { onNavigate("login"); return; }
-    api.getMyOrders()
-      .then(res => setOrders(res.data))
-      .catch(() => setOrders([]))
-      .finally(() => setLoading(false));
+    if (!user) return;
+    api.getOrders().then(r => setOrders(r.data)).catch(() => {}).finally(() => setLoading(false));
   }, [user]);
-  if (loading) return <div style={{ background: "#eaeded", minHeight: "100vh" }}><Spinner /></div>;
+
   return (
-    <div style={{ background: "#eaeded", minHeight: "100vh" }}>
-      <div style={{ maxWidth: "1000px", margin: "0 auto", padding: "20px 16px" }}>
-        <h1 style={{ fontSize: "24px", fontWeight: 400, fontFamily: "Georgia, serif", margin: "0 0 20px" }}>Your Orders</h1>
-        {orders.length === 0 ? (
-          <div style={{ background: "white", borderRadius: "8px", padding: "60px", textAlign: "center" }}>
-            <div style={{ fontSize: "48px" }}>📦</div>
-            <h2 style={{ fontFamily: "Georgia, serif" }}>No orders yet</h2>
-            <p style={{ color: "#888", marginBottom: "20px" }}>When you place orders, they'll appear here.</p>
-            <button onClick={() => onNavigate("products")}
-              style={{ background: "#ff9900", border: "none", padding: "12px 28px", borderRadius: "24px", fontSize: "15px", fontWeight: 700, cursor: "pointer" }}>
-              Start Shopping
-            </button>
+    <div style={{ background: T.bg, minHeight: "100vh", padding: "60px" }}>
+      <h1 style={{ fontFamily: SERIF, fontSize: "32px", color: T.text, marginBottom: "8px" }}>Your Orders</h1>
+      <div style={{ fontSize: "13px", color: T.textMuted, marginBottom: "40px" }}>{orders.length} order{orders.length !== 1 ? "s" : ""}</div>
+      {loading ? <div style={{ color: T.textMuted }}>Loading...</div>
+        : orders.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "80px 0" }}>
+            <div style={{ fontFamily: SERIF, fontSize: "24px", color: T.text, marginBottom: "12px" }}>No orders yet</div>
+            <div style={{ color: T.textMuted, marginBottom: "28px" }}>Start shopping to see your orders here</div>
+            <GoldBtn onClick={() => onNavigate("products")}>Browse Products</GoldBtn>
           </div>
-        ) : orders.map((order) => (
-          <div key={order.orderId} style={{ background: "white", borderRadius: "8px", marginBottom: "16px", overflow: "hidden" }}>
-            <div style={{ background: "#f7f7f7", padding: "12px 20px", display: "flex", gap: "32px", flexWrap: "wrap", borderBottom: "1px solid #e3e6e6" }}>
-              <div><div style={{ fontSize: "11px", color: "#555", textTransform: "uppercase" }}>Order placed</div>
-                <div style={{ fontSize: "14px", fontWeight: 600 }}>{new Date(order.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}</div></div>
-              <div><div style={{ fontSize: "11px", color: "#555", textTransform: "uppercase" }}>Total</div>
-                <div style={{ fontSize: "14px", fontWeight: 600 }}>₹{order.totalPrice?.toLocaleString()}</div></div>
-              <div><div style={{ fontSize: "11px", color: "#555", textTransform: "uppercase" }}>Status</div>
-                <div style={{ fontSize: "14px", fontWeight: 600, color: order.status === "DELIVERED" ? "#007b23" : order.status === "CANCELLED" ? "#cc0c39" : "#c45500" }}>{order.status}</div></div>
-              <div style={{ marginLeft: "auto" }}><div style={{ fontSize: "11px", color: "#555" }}>Order #{order.orderId}</div></div>
-            </div>
-            <div style={{ padding: "16px 20px" }}>
-              {order.items?.map((item, i) => (
-                <div key={i} style={{ display: "flex", gap: "12px", marginBottom: "8px", alignItems: "center" }}>
-                  <span style={{ fontSize: "28px" }}>{getIcon(item.category)}</span>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+            {orders.map(order => (
+              <div key={order.id} style={{ background: T.surface, border: `1px solid ${T.borderFaint}`, borderRadius: "2px", padding: "24px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "16px" }}>
                   <div>
-                    <div style={{ fontSize: "14px", fontWeight: 600, color: "#007185" }}>{item.productName}</div>
-                    <div style={{ fontSize: "12px", color: "#888" }}>Qty: {item.quantity} · ₹{item.priceAtPurchase?.toLocaleString()} each</div>
+                    <div style={{ fontSize: "10px", color: T.gold, letterSpacing: "1px", marginBottom: "4px" }}>ORDER #{order.id}</div>
+                    <div style={{ fontSize: "12px", color: T.textMuted }}>{new Date(order.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}</div>
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <div style={{ background: T.goldDim, color: T.gold, border: `1px solid ${T.gold}`, borderRadius: "2px", padding: "4px 10px", fontSize: "11px", letterSpacing: "0.5px" }}>{order.status || "CONFIRMED"}</div>
+                    <div style={{ fontFamily: SERIF, fontSize: "18px", color: T.gold, marginTop: "6px" }}>₹{order.totalAmount?.toLocaleString("en-IN")}</div>
                   </div>
                 </div>
-              ))}
-            </div>
+                <Divider />
+                <div style={{ marginTop: "16px", display: "flex", flexDirection: "column", gap: "8px" }}>
+                  {order.items?.map((item, i) => (
+                    <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: "13px" }}>
+                      <span style={{ color: T.textMuted }}>{item.productName} ×{item.quantity}</span>
+                      <span style={{ color: T.text }}>₹{(item.price * item.quantity).toLocaleString("en-IN")}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+        )}
     </div>
   );
 };
 
-
+// ── AccountPage ───────────────────────────────────────────────────────────────
 const AccountPage = ({ user, onNavigate, defaultTab }) => {
   const [tab, setTab] = useState(defaultTab || "orders");
   useEffect(() => { if (defaultTab) setTab(defaultTab); }, [defaultTab]);
-  const [profile, setProfile] = useState({ name: user?.name || "", phone: "" });
+
+  const [profile, setProfile]   = useState({ name: user?.name || "", phone: "" });
   const [passwords, setPasswords] = useState({ current: "", newPass: "", confirm: "" });
-  const [profileMsg, setProfileMsg] = useState("");
-  const [passMsg, setPassMsg] = useState("");
   const [addresses, setAddresses] = useState([]);
-  const [addrForm, setAddrForm] = useState({ street: "", city: "", state: "", pinCode: "", phoneNumber: "", name: "" });
+  const [newAddr, setNewAddr]   = useState({ name: "", street: "", city: "", state: "", pin: "", phone: "" });
   const [showAddrForm, setShowAddrForm] = useState(false);
-  const [addrMsg, setAddrMsg] = useState("");
-  const [addrErr, setAddrErr] = useState("");
+  const [msg, setMsg]           = useState("");
+  const [err, setErr]           = useState("");
 
   useEffect(() => {
     api.getProfile().then(r => setProfile({ name: r.data.name, phone: r.data.phone || "" })).catch(() => {});
     api.getAddresses().then(r => setAddresses(r.data)).catch(() => {});
   }, []);
 
+  const flash = (m, isErr = false) => { if (isErr) setErr(m); else setMsg(m); setTimeout(() => { setMsg(""); setErr(""); }, 3000); };
+
   const saveProfile = async () => {
-    try {
-      await api.updateProfile({ name: profile.name, phone: profile.phone });
-      setProfileMsg("✓ Profile updated!");
-      setTimeout(() => setProfileMsg(""), 3000);
-    } catch { setProfileMsg("Failed to update."); }
+    try { await api.updateProfile({ name: profile.name, phone: profile.phone }); flash("Profile updated"); }
+    catch { flash("Failed to update", true); }
   };
 
   const changePassword = async () => {
-    if (passwords.newPass !== passwords.confirm) { setPassMsg("Passwords don't match."); return; }
-    try {
-      await api.updateProfile({ currentPassword: passwords.current, newPassword: passwords.newPass });
-      setPassMsg("✓ Password changed!");
-      setPasswords({ current: "", newPass: "", confirm: "" });
-      setTimeout(() => setPassMsg(""), 3000);
-    } catch (e) { setPassMsg(e.response?.data?.message || "Current password incorrect."); }
+    if (passwords.newPass !== passwords.confirm) return flash("Passwords don't match", true);
+    try { await api.updateProfile({ currentPassword: passwords.current, newPassword: passwords.newPass }); flash("Password changed"); setPasswords({ current: "", newPass: "", confirm: "" }); }
+    catch { flash("Failed to change password", true); }
   };
 
-  const addAddr = async () => {
-    if (!/^[0-9]{10}$/.test(addrForm.phone)) { setAddrMsg("Phone must be exactly 10 digits."); return; }
-    if (!/^[0-9]{6}$/.test(addrForm.pinCode)) { setAddrMsg("PIN code must be exactly 6 digits."); return; }
-    try {
-      const res = await api.addAddress(addrForm);
-      setAddresses(prev => [...prev, res.data]);
-      setAddrForm({ street: "", city: "", state: "", pinCode: "", phone: "", fullName: "" });
-      setShowAddrForm(false);
-      setAddrMsg("✓ Address added!");
-      setTimeout(() => setAddrMsg(""), 3000);
-    } catch { setAddrMsg("Failed to add address."); }
-  };
-
-  const removeAddr = async (id) => {
-    try {
-      await api.deleteAddress(id);
-      setAddresses(prev => prev.filter(a => a.id !== id));
-    } catch {}
+  const addAddress = async () => {
+    try { const r = await api.addAddress(newAddr); setAddresses(a => [...a, r.data]); setNewAddr({ name: "", street: "", city: "", state: "", pin: "", phone: "" }); setShowAddrForm(false); flash("Address added"); }
+    catch { flash("Failed to add address", true); }
   };
 
   const tabs = [
-    { id: "orders", label: "📦 Your Orders" },
-    { id: "security", label: "🔒 Login & Security" },
-    { id: "payment", label: "💳 Payment Methods" },
-    { id: "contact", label: "📞 Contact Us" },
-    { id: "addresses", label: "📍 Your Addresses" },
+    { id: "orders", label: "Your Orders", icon: "📦" },
+    { id: "security", label: "Login & Security", icon: "🔐" },
+    { id: "payment", label: "Payment Methods", icon: "💳" },
+    { id: "addresses", label: "Your Addresses", icon: "📍" },
+    { id: "contact", label: "Contact Us", icon: "📞" },
   ];
 
-  const inputStyle = { width: "100%", padding: "10px 12px", border: "1px solid #ddd", borderRadius: "6px", fontSize: "14px", boxSizing: "border-box", marginBottom: "12px" };
-  const btnStyle = { background: "#ff9900", border: "none", padding: "10px 24px", borderRadius: "20px", fontWeight: 700, fontSize: "14px", cursor: "pointer" };
+  const inputStyle = { background: T.surface2, border: `1px solid ${T.borderFaint}`, color: T.text, padding: "10px 14px", borderRadius: "2px", fontSize: "14px", outline: "none", fontFamily: SANS, width: "100%" };
+  const labelStyle = { fontSize: "11px", color: T.gold, letterSpacing: "1px", marginBottom: "6px", display: "block" };
 
   return (
-    <div style={{ background: "#eaeded", minHeight: "100vh", padding: "24px 16px" }}>
-      <div style={{ maxWidth: "1000px", margin: "0 auto" }}>
-        <h1 style={{ fontFamily: "Georgia, serif", fontWeight: 400, marginBottom: "24px" }}>Your Account</h1>
-        <div style={{ display: "flex", gap: "20px", flexWrap: "wrap" }}>
-          {/* Sidebar */}
-          <div style={{ width: "220px", flexShrink: 0 }}>
-            {tabs.map(t => (
-              <div key={t.id} onClick={() => t.id === "orders" ? onNavigate("orders") : setTab(t.id)}
-                style={{ padding: "12px 16px", background: tab === t.id ? "#fff3cd" : "white", borderLeft: tab === t.id ? "4px solid #ff9900" : "4px solid transparent", cursor: "pointer", marginBottom: "4px", borderRadius: "4px", fontWeight: tab === t.id ? 700 : 400, fontSize: "14px" }}>
-                {t.label}
+    <div style={{ background: T.bg, minHeight: "100vh", padding: "60px", display: "flex", gap: "40px" }}>
+      {/* Sidebar */}
+      <div style={{ width: "220px", flexShrink: 0 }}>
+        <div style={{ fontFamily: SERIF, fontSize: "20px", color: T.text, marginBottom: "4px" }}>{user?.name}</div>
+        <div style={{ fontSize: "12px", color: T.textMuted, marginBottom: "28px" }}>{user?.email}</div>
+        {tabs.map(t => (
+          <div key={t.id} onClick={() => setTab(t.id)}
+            style={{ display: "flex", alignItems: "center", gap: "10px", padding: "11px 14px", marginBottom: "4px", cursor: "pointer", borderLeft: `2px solid ${tab === t.id ? T.gold : "transparent"}`, background: tab === t.id ? T.goldDim : "transparent", borderRadius: "0 2px 2px 0", transition: "all 0.2s" }}
+            onMouseEnter={e => { if (tab !== t.id) e.currentTarget.style.background = T.surface2; }}
+            onMouseLeave={e => { if (tab !== t.id) e.currentTarget.style.background = "transparent"; }}>
+            <span style={{ fontSize: "15px" }}>{t.icon}</span>
+            <span style={{ fontSize: "13px", color: tab === t.id ? T.gold : T.textMuted }}>{t.label}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Content */}
+      <div style={{ flex: 1, background: T.surface, borderRadius: "2px", padding: "32px" }}>
+        {msg && <div style={{ background: "rgba(34,197,94,0.1)", border: `1px solid ${T.green}`, color: T.green, padding: "10px 14px", borderRadius: "2px", fontSize: "13px", marginBottom: "20px" }}>{msg}</div>}
+        {err && <div style={{ background: "rgba(239,68,68,0.1)", border: `1px solid ${T.red}`, color: T.red, padding: "10px 14px", borderRadius: "2px", fontSize: "13px", marginBottom: "20px" }}>{err}</div>}
+
+        {tab === "orders" && (
+          <div>
+            <div style={{ fontFamily: SERIF, fontSize: "24px", color: T.text, marginBottom: "20px" }}>Your Orders</div>
+            <GoldBtn onClick={() => onNavigate("orders")}>View All Orders →</GoldBtn>
+          </div>
+        )}
+
+        {tab === "security" && (
+          <div>
+            <div style={{ fontFamily: SERIF, fontSize: "24px", color: T.text, marginBottom: "24px" }}>Login & Security</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "16px", maxWidth: "400px" }}>
+              <div><label style={labelStyle}>FULL NAME</label><input value={profile.name} onChange={e => setProfile(p => ({ ...p, name: e.target.value }))} style={inputStyle} /></div>
+              <div>
+                <label style={labelStyle}>MOBILE NUMBER</label>
+                <div style={{ display: "flex", alignItems: "center", border: `1px solid ${T.borderFaint}`, borderRadius: "2px", overflow: "hidden" }}>
+                  <span style={{ padding: "10px 12px", background: T.surface3, color: T.textMuted, fontSize: "13px", borderRight: `1px solid ${T.borderFaint}` }}>+91</span>
+                  <input value={profile.phone} onChange={e => setProfile(p => ({ ...p, phone: e.target.value.replace(/\D/g,"").slice(0,10) }))} placeholder="10-digit number" style={{ ...inputStyle, border: "none", borderRadius: 0 }} />
+                </div>
+              </div>
+              <GoldBtn onClick={saveProfile}>Save Profile</GoldBtn>
+              <Divider style={{ margin: "8px 0" }} />
+              <div style={{ fontFamily: SERIF, fontSize: "18px", color: T.text, marginBottom: "8px" }}>Change Password</div>
+              <div><label style={labelStyle}>CURRENT PASSWORD</label><input type="password" value={passwords.current} onChange={e => setPasswords(p => ({ ...p, current: e.target.value }))} style={inputStyle} /></div>
+              <div><label style={labelStyle}>NEW PASSWORD</label><input type="password" value={passwords.newPass} onChange={e => setPasswords(p => ({ ...p, newPass: e.target.value }))} style={inputStyle} /></div>
+              <div><label style={labelStyle}>CONFIRM PASSWORD</label><input type="password" value={passwords.confirm} onChange={e => setPasswords(p => ({ ...p, confirm: e.target.value }))} style={inputStyle} /></div>
+              <GoldBtn onClick={changePassword}>Change Password</GoldBtn>
+            </div>
+          </div>
+        )}
+
+        {tab === "payment" && (
+          <div>
+            <div style={{ fontFamily: SERIF, fontSize: "24px", color: T.text, marginBottom: "24px" }}>Payment Methods</div>
+            {[{icon:"🏦",title:"Amazon Pay Wallet",sub:"Balance: ₹0.00"},{icon:"💳",title:"Debit Card ending 4242",sub:"Expires 12/26"},{icon:"💳",title:"Credit Card ending 1234",sub:"Expires 08/25"}].map(m => (
+              <div key={m.title} style={{ display: "flex", alignItems: "center", gap: "16px", padding: "16px", background: T.surface2, border: `1px solid ${T.borderFaint}`, borderRadius: "2px", marginBottom: "10px" }}>
+                <span style={{ fontSize: "24px" }}>{m.icon}</span>
+                <div>
+                  <div style={{ color: T.text, fontSize: "14px" }}>{m.title}</div>
+                  <div style={{ color: T.textMuted, fontSize: "12px" }}>{m.sub}</div>
+                </div>
               </div>
             ))}
           </div>
+        )}
 
-          {/* Content */}
-          <div style={{ flex: 1, minWidth: "300px", background: "white", borderRadius: "8px", padding: "28px" }}>
-
-            {/* LOGIN & SECURITY */}
-            {tab === "security" && (
-              <div>
-                <h2 style={{ fontFamily: "Georgia, serif", fontWeight: 400, marginBottom: "24px" }}>Login & Security</h2>
-                <h3 style={{ fontSize: "15px", marginBottom: "12px" }}>Edit Name & Mobile</h3>
-                <input placeholder="Full Name" value={profile.name} onChange={e => setProfile({ ...profile, name: e.target.value })} style={inputStyle} />
-                <div style={{ display: "flex", alignItems: "center", marginBottom: "12px" }}>
-                  <span style={{ padding: "10px 12px", background: "#f0f0f0", border: "1px solid #ddd", borderRadius: "6px 0 0 6px", fontSize: "14px", whiteSpace: "nowrap" }}>+91</span>
-                  <input placeholder="10-digit mobile number" value={profile.phone}
-                    inputMode="numeric"
-                    maxLength={10}
-                    onChange={e => setProfile({ ...profile, phone: e.target.value.replace(/\D/g, "").slice(0, 10) })}
-                    style={{ ...inputStyle, marginBottom: 0, borderRadius: "0 6px 6px 0", borderLeft: "none" }} />
-                </div>
-                <div style={{ color: "#888", fontSize: "13px", marginBottom: "12px" }}>Email: {user?.email} (cannot be changed)</div>
-                {profileMsg && <div style={{ color: profileMsg.startsWith("✓") ? "green" : "red", marginBottom: "12px", fontSize: "13px" }}>{profileMsg}</div>}
-                <button style={btnStyle} onClick={saveProfile}>Save Changes</button>
-                <hr style={{ margin: "28px 0", border: "none", borderTop: "1px solid #eee" }} />
-                <h3 style={{ fontSize: "15px", marginBottom: "12px" }}>Change Password</h3>
-                <input placeholder="Current Password" type="password" value={passwords.current} onChange={e => setPasswords({ ...passwords, current: e.target.value })} style={inputStyle} />
-                <input placeholder="New Password" type="password" value={passwords.newPass} onChange={e => setPasswords({ ...passwords, newPass: e.target.value })} style={inputStyle} />
-                <input placeholder="Confirm New Password" type="password" value={passwords.confirm} onChange={e => setPasswords({ ...passwords, confirm: e.target.value })} style={inputStyle} />
-                {passMsg && <div style={{ color: passMsg.startsWith("✓") ? "green" : "red", marginBottom: "12px", fontSize: "13px" }}>{passMsg}</div>}
-                <button style={btnStyle} onClick={changePassword}>Change Password</button>
-              </div>
-            )}
-
-            {/* PAYMENT METHODS */}
-            {tab === "payment" && (
-              <div>
-                <h2 style={{ fontFamily: "Georgia, serif", fontWeight: 400, marginBottom: "24px" }}>Payment Methods</h2>
-                {[
-                  { icon: "👛", title: "Amazon Pay Wallet", sub: "Balance: ₹0.00", color: "#e8f4f8" },
-                  { icon: "💳", title: "Debit Card", sub: "Add a debit card for easy payments", color: "#fef9e7" },
-                  { icon: "💰", title: "Credit Card", sub: "Add a credit card for easy payments", color: "#fdf2f8" },
-                ].map(p => (
-                  <div key={p.title} style={{ display: "flex", alignItems: "center", gap: "16px", padding: "18px", border: "1px solid #e3e6e6", borderRadius: "8px", marginBottom: "12px", background: p.color }}>
-                    <span style={{ fontSize: "32px" }}>{p.icon}</span>
-                    <div>
-                      <div style={{ fontWeight: 700, fontSize: "15px" }}>{p.title}</div>
-                      <div style={{ fontSize: "13px", color: "#555", marginTop: "2px" }}>{p.sub}</div>
-                    </div>
-                    <button style={{ marginLeft: "auto", background: "#ff9900", border: "none", padding: "8px 16px", borderRadius: "16px", fontWeight: 700, fontSize: "12px", cursor: "pointer" }}>Add</button>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* CONTACT US */}
-            {tab === "contact" && (
-              <div>
-                <h2 style={{ fontFamily: "Georgia, serif", fontWeight: 400, marginBottom: "24px" }}>Contact Us</h2>
-                <div style={{ display: "grid", gap: "16px" }}>
-                  {[
-                    { icon: "📞", label: "Customer Care (24x7)", value: "1800-419-7355" },
-                    { icon: "📞", label: "Prime Support", value: "1800-3000-9009" },
-                    { icon: "📞", label: "Seller Support", value: "1800-572-1571" },
-                    { icon: "✉️", label: "Email Support", value: "support@primedeals.in" },
-                    { icon: "✉️", label: "Grievance Officer", value: "grievance@primedeals.in" },
-                  ].map(c => (
-                    <div key={c.label} style={{ display: "flex", gap: "14px", alignItems: "flex-start", padding: "16px", border: "1px solid #e3e6e6", borderRadius: "8px" }}>
-                      <span style={{ fontSize: "22px" }}>{c.icon}</span>
-                      <div>
-                        <div style={{ fontSize: "13px", color: "#888" }}>{c.label}</div>
-                        <div style={{ fontWeight: 700, fontSize: "15px", color: "#007185" }}>{c.value}</div>
-                      </div>
+        {tab === "addresses" && (
+          <div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
+              <div style={{ fontFamily: SERIF, fontSize: "24px", color: T.text }}>Your Addresses</div>
+              <GoldBtn small outline onClick={() => setShowAddrForm(v => !v)}>+ Add Address</GoldBtn>
+            </div>
+            {showAddrForm && (
+              <div style={{ background: T.surface2, border: `1px solid ${T.border}`, padding: "24px", borderRadius: "2px", marginBottom: "20px" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                  {[["Full Name","name","text"],["Phone","phone","tel"],["Street","street","text"],["City","city","text"],["State","state","text"],["PIN","pin","text"]].map(([label, key, type]) => (
+                    <div key={key} style={{ gridColumn: key === "street" ? "1/-1" : "auto" }}>
+                      <label style={labelStyle}>{label.toUpperCase()}</label>
+                      <input value={newAddr[key]} onChange={e => setNewAddr(a => ({ ...a, [key]: key === "phone" ? e.target.value.replace(/\D/g,"").slice(0,10) : key === "pin" ? e.target.value.replace(/\D/g,"").slice(0,6) : e.target.value }))} type={type} style={inputStyle} />
                     </div>
                   ))}
                 </div>
-                <p style={{ fontSize: "12px", color: "#aaa", marginTop: "20px" }}>Available Mon-Sun, 8 AM – 10 PM IST</p>
-              </div>
-            )}
-
-            {/* ADDRESSES */}
-            {tab === "addresses" && (
-              <div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-                  <h2 style={{ fontFamily: "Georgia, serif", fontWeight: 400, margin: 0 }}>Your Addresses</h2>
-                  <button style={btnStyle} onClick={() => setShowAddrForm(!showAddrForm)}>+ Add Address</button>
+                <div style={{ display: "flex", gap: "10px", marginTop: "16px" }}>
+                  <GoldBtn small onClick={addAddress}>Save Address</GoldBtn>
+                  <GoldBtn small outline onClick={() => setShowAddrForm(false)}>Cancel</GoldBtn>
                 </div>
-                {addrMsg && <div style={{ color: addrMsg.startsWith("✓") ? "green" : "red", marginBottom: "12px", fontSize: "13px" }}>{addrMsg}</div>}
-                {showAddrForm && (
-                  <div style={{ border: "1px solid #e3e6e6", borderRadius: "8px", padding: "20px", marginBottom: "20px" }}>
-                    <h3 style={{ fontSize: "15px", marginBottom: "14px" }}>New Address</h3>
-                    {[["Full Name", "fullName"], ["Street / Area", "street"], ["City", "city"], ["State", "state"], ["PIN Code", "pinCode"], ["Phone (10 digits)", "phone"]].map(([lbl, key]) => (
-                      <input key={key} placeholder={lbl} value={addrForm[key]}
-                        inputMode={key === "phone" || key === "pinCode" ? "numeric" : "text"}
-                        maxLength={key === "phone" ? 10 : key === "pinCode" ? 6 : undefined}
-                        onChange={e => {
-                          const val = key === "phone" ? e.target.value.replace(/\D/g, "").slice(0, 10) : key === "pinCode" ? e.target.value.replace(/\D/g, "").slice(0, 6) : e.target.value;
-                          setAddrForm({ ...addrForm, [key]: val });
-                        }} style={inputStyle} />
-                    ))}
-                    <div style={{ display: "flex", gap: "10px" }}>
-                      <button style={btnStyle} onClick={addAddr}>Save Address</button>
-                      <button style={{ ...btnStyle, background: "#eee", color: "#333" }} onClick={() => setShowAddrForm(false)}>Cancel</button>
-                    </div>
-                  </div>
-                )}
-                {addresses.length === 0 && !showAddrForm && (
-                  <div style={{ textAlign: "center", padding: "40px", color: "#888" }}>
-                    <div style={{ fontSize: "48px", marginBottom: "12px" }}>📍</div>
-                    <p>No saved addresses yet.</p>
-                  </div>
-                )}
-                {addresses.map(a => (
-                  <div key={a.id} style={{ border: "1px solid #e3e6e6", borderRadius: "8px", padding: "16px", marginBottom: "12px", position: "relative" }}>
-                    <div style={{ fontWeight: 700 }}>{a.fullName}</div>
-                    <div style={{ fontSize: "13px", color: "#555", marginTop: "4px" }}>{a.street}, {a.city}, {a.state} - {a.pinCode}</div>
-                    <div style={{ fontSize: "13px", color: "#555" }}>Phone: {a.phone}</div>
-                    <button onClick={() => removeAddr(a.id)} style={{ marginTop: "10px", background: "none", border: "1px solid #c45500", color: "#c45500", padding: "4px 14px", borderRadius: "12px", fontSize: "12px", cursor: "pointer" }}>Remove</button>
-                  </div>
-                ))}
               </div>
             )}
+            {addresses.length === 0 ? <div style={{ color: T.textMuted, fontSize: "13px" }}>No addresses saved yet.</div>
+              : addresses.map(a => (
+                <div key={a.id} style={{ padding: "16px", background: T.surface2, border: `1px solid ${T.borderFaint}`, borderRadius: "2px", marginBottom: "10px" }}>
+                  <div style={{ fontSize: "14px", color: T.text, marginBottom: "4px" }}>{a.name}</div>
+                  <div style={{ fontSize: "12px", color: T.textMuted }}>{a.street}, {a.city}, {a.state} - {a.pin}</div>
+                  <div style={{ fontSize: "12px", color: T.textMuted }}>{a.phone}</div>
+                  <button onClick={() => api.deleteAddress(a.id).then(() => setAddresses(ads => ads.filter(x => x.id !== a.id)))}
+                    style={{ background: "none", border: "none", color: T.red, fontSize: "12px", cursor: "pointer", marginTop: "8px", padding: 0 }}>Remove</button>
+                </div>
+              ))}
           </div>
-        </div>
+        )}
+
+        {tab === "contact" && (
+          <div>
+            <div style={{ fontFamily: SERIF, fontSize: "24px", color: T.text, marginBottom: "24px" }}>Contact Us</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "32px" }}>
+              {[{icon:"📞",title:"Customer Care",detail:"1800-123-4567",sub:"Mon–Sat, 9AM–9PM IST"},{icon:"📧",title:"Email Support",detail:"support@primedeals.in",sub:"Reply within 24 hours"},{icon:"💬",title:"Live Chat",detail:"Available Now",sub:"Avg wait: 2 mins"},{icon:"🏢",title:"Head Office",detail:"Bangalore, Karnataka",sub:"India 560001"}].map(c => (
+                <div key={c.title} style={{ padding: "20px", background: T.surface2, border: `1px solid ${T.borderFaint}`, borderRadius: "2px" }}>
+                  <div style={{ fontSize: "24px", marginBottom: "10px" }}>{c.icon}</div>
+                  <div style={{ fontSize: "12px", color: T.gold, letterSpacing: "1px", marginBottom: "4px" }}>{c.title.toUpperCase()}</div>
+                  <div style={{ fontSize: "14px", color: T.text, marginBottom: "2px" }}>{c.detail}</div>
+                  <div style={{ fontSize: "12px", color: T.textMuted }}>{c.sub}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
 };
 
-export default function App() {
-  const [page, setPage] = useState("home");
-  const [cart, setCart] = useState([]);
-  const [user, setUser] = useState(null);
-  const [selectedProduct, setSelectedProduct] = useState(null);
-  const [filterCategory, setFilterCategory] = useState(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [products, setProducts] = useState([]);
-  const [productsLoading, setProductsLoading] = useState(true);
-  const [productsPage, setProductsPage] = useState(0);
-  const [hasMore, setHasMore] = useState(true);
-  const [toast, setToast] = useState(null);
-  const [navParam, setNavParam] = useState(null);
+// ── Toast ─────────────────────────────────────────────────────────────────────
+const Toast = ({ msg }) => msg ? (
+  <div style={{ position: "fixed", bottom: "32px", left: "50%", transform: "translateX(-50%)", background: T.surface, border: `1px solid ${T.gold}`, color: T.text, padding: "12px 24px", borderRadius: "2px", fontSize: "13px", zIndex: 9999, boxShadow: "0 8px 32px rgba(0,0,0,0.5)", whiteSpace: "nowrap" }}>
+    <span style={{ color: T.gold, marginRight: "8px" }}>✓</span>{msg}
+  </div>
+) : null;
 
+// ── App ───────────────────────────────────────────────────────────────────────
+export default function App() {
+  const [page, setPage]                   = useState("home");
+  const [cart, setCart]                   = useState([]);
+  const [user, setUser]                   = useState(null);
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [filterCategory, setFilterCategory]   = useState(null);
+  const [searchQuery, setSearchQuery]     = useState("");
+  const [products, setProducts]           = useState([]);
+  const [productsLoading, setProductsLoading] = useState(true);
+  const [productsPage, setProductsPage]   = useState(0);
+  const [hasMore, setHasMore]             = useState(true);
+  const [toast, setToast]                 = useState(null);
+  const [navParam, setNavParam]           = useState(null);
+
+  const cartCount = cart.reduce((s, i) => s + i.qty, 0);
+
+  // Load products
   useEffect(() => {
     api.getProducts(0, 40)
-      .then(res => {
-        setProducts(res.data);
-        setHasMore(res.data.length === 40);
-        setProductsPage(0);
-      })
-      .catch(() => console.error("Could not load products"))
+      .then(res => { setProducts(res.data); setHasMore(res.data.length === 40); setProductsPage(0); })
+      .catch(() => {})
       .finally(() => setProductsLoading(false));
   }, []);
 
   const loadMoreProducts = () => {
-    const nextPage = productsPage + 1;
-    api.getProducts(nextPage, 40)
-      .then(res => {
-        setProducts(prev => [...prev, ...res.data]);
-        setHasMore(res.data.length === 40);
-        setProductsPage(nextPage);
-      });
+    const next = productsPage + 1;
+    api.getProducts(next, 40).then(res => { setProducts(p => [...p, ...res.data]); setHasMore(res.data.length === 40); setProductsPage(next); });
   };
 
+  // Auth
   useEffect(() => {
     const token = localStorage.getItem("token");
-    const savedUser = localStorage.getItem("user");
-    if (token && savedUser) {
-      setUser(JSON.parse(savedUser));
-      fetchCart();
-    }
+    const stored = localStorage.getItem("user");
+    if (token && stored) { try { setUser(JSON.parse(stored)); } catch {} }
   }, []);
 
-  const fetchCart = async () => {
-    try {
-      const res = await api.getCart();
-      const backendCart = (res.data.items || []).map(item => ({
-        id: item.productId,
-        cartItemId: item.cartItemId,
-        name: item.productName,
-        price: item.price,
-        imageUrl: item.imageUrl,
-        qty: item.quantity,
-      }));
-      setCart(backendCart);
-    } catch (err) {
-      console.error("Could not load cart:", err);
-    }
+  const handleLogin = data => {
+    localStorage.setItem("token", data.token);
+    localStorage.setItem("user", JSON.stringify({ name: data.name, email: data.email }));
+    setUser({ name: data.name, email: data.email });
+    fetchCart();
+    navigate("home");
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem("token"); localStorage.removeItem("user");
+    setUser(null); setCart([]); navigate("home");
+  };
+
+  // Cart
+  const fetchCart = async () => {
+    try { const r = await api.getCart(); setCart(r.data.map(i => ({ ...i, id: i.productId, cartItemId: i.cartItemId }))); } catch {}
+  };
+  useEffect(() => { if (user) fetchCart(); }, [user]);
+
+  const addToCart = async product => {
+    setCart(prev => {
+      const ex = prev.find(i => i.id === product.id);
+      if (ex) return prev.map(i => i.id === product.id ? { ...i, qty: i.qty + 1 } : i);
+      return [...prev, { ...product, qty: 1 }];
+    });
+    try { await api.addToCart(product.id, 1); await fetchCart(); } catch {}
+  };
+
+  const removeFromCart = async cartItemId => {
+    setCart(prev => {
+      const item = prev.find(i => i.cartItemId === cartItemId);
+      if (!item) return prev;
+      if (item.qty > 1) return prev.map(i => i.cartItemId === cartItemId ? { ...i, qty: i.qty - 1 } : i);
+      return prev.filter(i => i.cartItemId !== cartItemId);
+    });
+    try { await api.removeFromCart(cartItemId); } catch {}
+  };
+
+  const updateQty = (cartItemId, qty) => {
+    if (qty < 1) { removeFromCart(cartItemId); return; }
+    setCart(prev => prev.map(i => i.cartItemId === cartItemId ? { ...i, qty } : i));
+  };
+
+  const placeOrder = async (address, payment) => {
+    const items = cart.map(i => ({ productId: i.id, quantity: i.qty, price: i.price }));
+    await api.createOrder({ items, address, paymentMethod: payment, totalAmount: cart.reduce((s, i) => s + i.price * i.qty, 0) });
+    await api.clearCart();
+    setCart([]);
+  };
+
+  const showToast = msg => { setToast(msg); setTimeout(() => setToast(null), 2500); };
+
   const navigate = (target, extra) => {
-    if (target === "products" && extra) setFilterCategory(extra);
+    if (target === "products" && extra && CATEGORIES.some(c => c.name === extra)) setFilterCategory(extra);
     else if (target !== "products") setFilterCategory(null);
     if (target === "account") setNavParam(extra || null);
-    if (target === "home") setSearchQuery("");
+    if (target === "home") { setSearchQuery(""); }
     setPage(target);
     window.scrollTo(0, 0);
   };
 
-  const showToast = (msg) => {
-    setToast(msg);
-    setTimeout(() => setToast(null), 2500);
-  };
+  const productClick = product => { setSelectedProduct(product); navigate("product"); };
 
-  const addToCart = async (product) => {
-    setCart(prev => {
-      const existing = prev.find(i => i.id === product.id);
-      if (existing) return prev.map(i => i.id === product.id ? { ...i, qty: i.qty + 1 } : i);
-      return [...prev, { ...product, qty: 1 }];
-    });
-    showToast(`✓ "${product.name}" added to cart`);
-    if (localStorage.getItem("token")) {
-      try {
-        await api.addToCart(product.id, 1);
-        await fetchCart();
-      } catch (err) {
-        console.error("Cart sync failed:", err);
-      }
-    }
-  };
-
-  const removeFromCart = async (id,cartItemId) => {
-    setCart(prev => prev.filter(i => i.cartItemId !== cartItemId));
-    if (localStorage.getItem("token")) {
-      try {
-        await api.removeFromCart(cartItemId);
-      } catch (err) {
-        console.error("Remove cart sync failed:", err);
-      }
-    }
-  };
-
-  const updateQty = (id, qty) => setCart(prev => prev.map(i => i.id === id ? { ...i, qty } : i));
-
-  const productClick = (product) => {
-    setSelectedProduct(product);
-    navigate("product");
-  };
-
-  const handleLogin = (userData) => {
-    setUser(userData);
-    localStorage.setItem("user", JSON.stringify(userData));
-    fetchCart();
-  };
-
-  const handleLogout = async () => {
-    if (localStorage.getItem("token")) {
-      try { await api.clearCart(); } catch (err) {}
-    }
-    setUser(null);
-    setCart([]);
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    navigate("home");
-  };
-
-  const placeOrder = async (shippingAddress) => {
-    if (!user) { navigate("login"); throw new Error("Not logged in"); }
-    await api.placeOrder(shippingAddress);
-    setCart([]);
-  };
-
-  const cartCount = cart.reduce((s, i) => s + i.qty, 0);
+  const requireAuth = () => { if (!user) { navigate("login"); throw new Error("Not logged in"); } };
 
   const renderPage = () => {
     switch (page) {
-      case "home": return <HomePage onNavigate={navigate} onAddToCart={addToCart} onProductClick={productClick} products={products} cart={cart} onRemoveFromCart={removeFromCart} />;
-      case "products": return <ProductsPage onAddToCart={addToCart} onProductClick={productClick} filterCategory={filterCategory} searchQuery={searchQuery} products={products} loading={productsLoading} cart={cart} onRemoveFromCart={removeFromCart} onLoadMore={loadMoreProducts} hasMore={hasMore} />;
-      case "product": return selectedProduct ? <ProductDetailPage product={selectedProduct} onAddToCart={addToCart} onNavigate={navigate} /> : null;
-      case "cart": return <CartPage cart={cart} onRemove={removeFromCart} onUpdateQty={updateQty} onNavigate={navigate} />;
+      case "home":     return <HomePage onNavigate={navigate} onAddToCart={p => { try { requireAuth(); addToCart(p); showToast(`${p.name} added to cart`); } catch {} }} onProductClick={productClick} products={products} cart={cart} onRemoveFromCart={removeFromCart} />;
+      case "product":  return selectedProduct ? <ProductDetailPage product={selectedProduct} onAddToCart={p => { try { requireAuth(); addToCart(p); showToast(`${p.name} added to cart`); } catch {} }} onNavigate={navigate} /> : null;
+      case "products": return <ProductsPage onAddToCart={p => { try { requireAuth(); addToCart(p); showToast(`${p.name} added to cart`); } catch {} }} onProductClick={productClick} filterCategory={filterCategory} searchQuery={searchQuery} products={products} loading={productsLoading} cart={cart} onRemoveFromCart={removeFromCart} onLoadMore={loadMoreProducts} hasMore={hasMore} />;
+      case "cart":     return <CartPage cart={cart} onRemove={removeFromCart} onUpdateQty={updateQty} onNavigate={navigate} />;
       case "checkout": return <CheckoutPage cart={cart} user={user} onNavigate={navigate} onPlaceOrder={placeOrder} />;
-      case "login": return <LoginPage onLogin={handleLogin} onNavigate={navigate} />;
-      case "account": return <AccountPage user={user} onNavigate={navigate} defaultTab={navParam} />;
-      case "orders": return <OrdersPage user={user} onNavigate={navigate} />;
-      default: return null;
+      case "login":    return <LoginPage onLogin={handleLogin} onNavigate={navigate} />;
+      case "account":  return <AccountPage user={user} onNavigate={navigate} defaultTab={navParam} />;
+      case "orders":   return <OrdersPage user={user} onNavigate={navigate} />;
+      default:         return null;
     }
   };
 
   return (
-    <div style={{ fontFamily: "Arial, sans-serif", minHeight: "100vh" }}>
+    <div style={{ fontFamily: SANS, minHeight: "100vh", background: T.bg, color: T.text }}>
       {page !== "login" && (
-        <Navbar
-          cartCount={cartCount}
-          onNavigate={navigate}
-          searchQuery={searchQuery}
-          onSearch={q => { setSearchQuery(q); navigate("products"); }}
-          user={user}
-          onLogout={handleLogout}
-          products={products}
-        />
+        <Navbar cartCount={cartCount} onNavigate={navigate} searchQuery={searchQuery}
+          onSearch={q => { setSearchQuery(q); navigate("products"); }} user={user} onLogout={handleLogout} products={products} />
       )}
-      {renderPage()}
-      {toast && (
-        <div style={{ position: "fixed", bottom: "24px", left: "50%", transform: "translateX(-50%)", background: "#232f3e", color: "white", padding: "12px 24px", borderRadius: "24px", fontSize: "14px", fontWeight: 600, boxShadow: "0 8px 24px rgba(0,0,0,0.3)", zIndex: 9999 }}>
-          {toast}
-        </div>
-      )}
-      <style>{`
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { margin: 0; }
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-thumb { background: #888; border-radius: 3px; }
-      `}</style>
+      <main>{renderPage()}</main>
+      <Toast msg={toast} />
     </div>
   );
 }
