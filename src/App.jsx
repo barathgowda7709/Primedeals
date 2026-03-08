@@ -127,7 +127,8 @@ const Navbar = ({ cartCount, onNavigate, searchQuery, onSearch, user, onLogout }
       </div>
       <div style={{ background: "#232f3e", padding: "4px 16px", display: "flex", gap: "4px", alignItems: "center", overflowX: "auto" }}>
         {["All", "Today's Deals", "Customer Service", "Gift Cards", "Sell"].map(item => (
-          <div key={item} style={{ color: "white", fontSize: "13px", padding: "6px 10px", whiteSpace: "nowrap", cursor: "pointer", borderRadius: "3px", border: "1px solid transparent" }}
+          <div key={item} onClick={() => item === "Customer Service" ? onNavigate("account", "contact") : null}
+            style={{ color: "white", fontSize: "13px", padding: "6px 10px", whiteSpace: "nowrap", cursor: "pointer", borderRadius: "3px", border: "1px solid transparent" }}
             onMouseEnter={e => e.currentTarget.style.borderColor = "white"}
             onMouseLeave={e => e.currentTarget.style.borderColor = "transparent"}>
             {item === "All" ? "☰ All" : item}
@@ -695,8 +696,8 @@ const OrdersPage = ({ user, onNavigate }) => {
 };
 
 
-const AccountPage = ({ user, onNavigate }) => {
-  const [tab, setTab] = useState("orders");
+const AccountPage = ({ user, onNavigate, defaultTab }) => {
+  const [tab, setTab] = useState(defaultTab || "orders");
   const [profile, setProfile] = useState({ name: user?.name || "", phone: "" });
   const [passwords, setPasswords] = useState({ current: "", newPass: "", confirm: "" });
   const [profileMsg, setProfileMsg] = useState("");
@@ -1025,7 +1026,7 @@ export default function App() {
       case "cart": return <CartPage cart={cart} onRemove={removeFromCart} onUpdateQty={updateQty} onNavigate={navigate} />;
       case "checkout": return <CheckoutPage cart={cart} user={user} onNavigate={navigate} onPlaceOrder={placeOrder} />;
       case "login": return <LoginPage onLogin={handleLogin} onNavigate={navigate} />;
-      case "account": return <AccountPage user={user} onNavigate={navigate} />;
+      case "account": return <AccountPage user={user} onNavigate={navigate} defaultTab={navParam} />;
       case "orders": return <OrdersPage user={user} onNavigate={navigate} />;
       default: return null;
     }
