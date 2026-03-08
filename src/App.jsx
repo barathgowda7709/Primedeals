@@ -698,6 +698,7 @@ const OrdersPage = ({ user, onNavigate }) => {
 
 const AccountPage = ({ user, onNavigate, defaultTab }) => {
   const [tab, setTab] = useState(defaultTab || "orders");
+  useEffect(() => { if (defaultTab) setTab(defaultTab); }, [defaultTab]);
   const [profile, setProfile] = useState({ name: user?.name || "", phone: "" });
   const [passwords, setPasswords] = useState({ current: "", newPass: "", confirm: "" });
   const [profileMsg, setProfileMsg] = useState("");
@@ -912,6 +913,7 @@ export default function App() {
   const [products, setProducts] = useState([]);
   const [productsLoading, setProductsLoading] = useState(true);
   const [toast, setToast] = useState(null);
+  const [navParam, setNavParam] = useState(null);
 
   useEffect(() => {
     api.getProducts()
@@ -949,6 +951,7 @@ export default function App() {
   const navigate = (target, extra) => {
     if (target === "products" && extra) setFilterCategory(extra);
     else if (target !== "products") setFilterCategory(null);
+    if (target === "account") setNavParam(extra || null);
     setPage(target);
     window.scrollTo(0, 0);
   };
