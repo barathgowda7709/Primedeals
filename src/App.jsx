@@ -138,7 +138,7 @@ const Navbar = ({ cartCount, onNavigate, searchQuery, onSearch, user, onLogout }
   );
 };
 
-const ProductCard = ({ product, onAddToCart, onClick }) => (
+const ProductCard = ({ product, onAddToCart, onClick, cartItem, onRemoveFromCart }) => (
   <div style={{ border: "1px solid #e3e6e6", borderRadius: "8px", padding: "16px", cursor: "pointer", transition: "box-shadow 0.2s", background: "white", display: "flex", flexDirection: "column" }}
     onMouseEnter={e => e.currentTarget.style.boxShadow = "0 4px 16px rgba(0,0,0,0.1)"}
     onMouseLeave={e => e.currentTarget.style.boxShadow = ""}>
@@ -158,16 +158,26 @@ const ProductCard = ({ product, onAddToCart, onClick }) => (
       </div>
       <div style={{ color: "#007185", fontSize: "11px", fontWeight: 600, marginTop: "4px" }}>✓ Prime FREE Delivery</div>
     </div>
-    <button onClick={(e) => { e.stopPropagation(); onAddToCart(product); }}
-      style={{ marginTop: "12px", background: "#ff9900", border: "none", borderRadius: "20px", padding: "8px", fontSize: "12px", fontWeight: 700, cursor: "pointer", color: "#131921", transition: "background 0.2s" }}
-      onMouseEnter={e => e.currentTarget.style.background = "#fa8900"}
-      onMouseLeave={e => e.currentTarget.style.background = "#ff9900"}>
-      Add to Cart
-    </button>
+    {cartItem ? (
+      <div style={{ display: "flex", alignItems: "center", marginTop: "12px", border: "1px solid #ddd", borderRadius: "20px", overflow: "hidden" }}>
+        <button onClick={(e) => { e.stopPropagation(); onRemoveFromCart(product.id, cartItem.cartItemId); }}
+          style={{ flex: 1, background: "#f8f8f8", border: "none", padding: "8px", cursor: "pointer", color: "#c45500", fontSize: "14px", fontWeight: 700 }}>🗑</button>
+        <span style={{ flex: 1, textAlign: "center", fontSize: "14px", fontWeight: 700, color: "#0f1111" }}>{cartItem.qty}</span>
+        <button onClick={(e) => { e.stopPropagation(); onAddToCart(product); }}
+          style={{ flex: 1, background: "#ff9900", border: "none", padding: "8px", cursor: "pointer", color: "#131921", fontSize: "18px", fontWeight: 700 }}>+</button>
+      </div>
+    ) : (
+      <button onClick={(e) => { e.stopPropagation(); onAddToCart(product); }}
+        style={{ marginTop: "12px", background: "#ff9900", border: "none", borderRadius: "20px", padding: "8px", fontSize: "12px", fontWeight: 700, cursor: "pointer", color: "#131921", transition: "background 0.2s" }}
+        onMouseEnter={e => e.currentTarget.style.background = "#fa8900"}
+        onMouseLeave={e => e.currentTarget.style.background = "#ff9900"}>
+        Add to Cart
+      </button>
+    )}
   </div>
 );
 
-const HomePage = ({ onNavigate, onAddToCart, onProductClick, products }) => {
+const HomePage = ({ onNavigate, onAddToCart, onProductClick, products, cart, onRemoveFromCart }) => {
   const [bannerIndex, setBannerIndex] = useState(0);
   const banners = [
     { bg: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", text: "Incredible Deals on Electronics", sub: "Up to 70% off on top brands", btn: "Shop Electronics" },
@@ -219,7 +229,7 @@ const HomePage = ({ onNavigate, onAddToCart, onProductClick, products }) => {
           {products.length === 0 ? <Spinner /> : (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: "16px" }}>
               {products.slice(0, 6).map(p => (
-                <ProductCard key={p.id} product={p} onAddToCart={onAddToCart} onClick={() => onProductClick(p)} />
+                <ProductCard key={p.id} product={p} onAddToCart={onAddToCart} onClick={() => onProductClick(p)} cartItem={cart.find(i => i.id === p.id)} onRemoveFromCart={onRemoveFromCart} />
               ))}
             </div>
           )}
@@ -257,7 +267,7 @@ const HomePage = ({ onNavigate, onAddToCart, onProductClick, products }) => {
   );
 };
 
-const ProductsPage = ({ onAddToCart, onProductClick, filterCategory, searchQuery, products, loading }) => {
+const ProductsPage = ({ onAddToCart, onProductClick, filterCategory, searchQuery, products, loading, cart, onRemoveFromCart }) => {
   const [sortBy, setSortBy] = useState("featured");
   const [selectedCat, setSelectedCat] = useState(filterCategory || "All");
   let filtered = products;
@@ -302,7 +312,7 @@ const ProductsPage = ({ onAddToCart, onProductClick, filterCategory, searchQuery
           </div>
           {loading ? <Spinner /> : (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "16px" }}>
-              {filtered.map(p => <ProductCard key={p.id} product={p} onAddToCart={onAddToCart} onClick={() => onProductClick(p)} />)}
+              {filtered.map(p => <ProductCard key={p.id} product={p} onAddToCart={onAddToCart} onClick={() => onProductClick(p)} cartItem={cart.find(i => i.id === p.id)} onRemoveFromCart={onRemoveFromCart} />)}
               {filtered.length === 0 && (
                 <div style={{ gridColumn: "1/-1", textAlign: "center", padding: "60px", color: "#888" }}>
                   <div style={{ fontSize: "48px" }}>🔍</div>
@@ -801,8 +811,8 @@ export default function App() {
 
   const renderPage = () => {
     switch (page) {
-      case "home": return <HomePage onNavigate={navigate} onAddToCart={addToCart} onProductClick={productClick} products={products} />;
-      case "products": return <ProductsPage onAddToCart={addToCart} onProductClick={productClick} filterCategory={filterCategory} searchQuery={searchQuery} products={products} loading={productsLoading} />;
+      case "home": return <HomePage onNavigate={navigate} onAddToCart={addToCart} onProductClick={productClick} products={products} cart={cart} onRemoveFromCart={removeFromCart} />;
+      case "products": return <ProductsPage onAddToCart={addToCart} onProductClick={productClick} filterCategory={filterCategory} searchQuery={searchQuery} products={products} loading={productsLoading} cart={cart} onRemoveFromCart={removeFromCart} />;
       case "product": return selectedProduct ? <ProductDetailPage product={selectedProduct} onAddToCart={addToCart} onNavigate={navigate} /> : null;
       case "cart": return <CartPage cart={cart} onRemove={removeFromCart} onUpdateQty={updateQty} onNavigate={navigate} />;
       case "checkout": return <CheckoutPage cart={cart} user={user} onNavigate={navigate} onPlaceOrder={placeOrder} />;
