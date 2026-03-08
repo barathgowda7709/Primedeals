@@ -749,6 +749,7 @@ export default function App() {
     if (localStorage.getItem("token")) {
       try {
         await api.addToCart(product.id, 1);
+        await fetchCart();
       } catch (err) {
         console.error("Cart sync failed:", err);
       }
