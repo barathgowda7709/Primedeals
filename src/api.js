@@ -46,3 +46,5 @@ export const getSellerProducts  = ()       => API.get("/seller/products");
 export const addSellerProduct   = (data)   => API.post("/seller/products", data);
 export const updateSellerProduct= (id, data) => API.put(`/seller/products/${id}`, data);
 export const deleteSellerProduct= (id)     => API.delete(`/seller/products/${id}`);
+export const createOrder   = (data) => API.post("/orders", data);
+export const getOrders     = ()     => API.get("/orders");

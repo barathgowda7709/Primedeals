@@ -715,7 +715,7 @@ const OrdersPage = ({ user, onNavigate }) => {
   const [loading, setLoading] = useState(true);
   useEffect(() => {
     if (!user) return;
-    api.getOrders().then(r => setOrders(r.data)).catch(() => {}).finally(() => setLoading(false));
+    api.getMyOrders().then(r => setOrders(r.data)).catch(() => {}).finally(() => setLoading(false));
   }, [user]);
 
   return (
