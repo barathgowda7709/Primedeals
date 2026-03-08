@@ -37,3 +37,12 @@ export const getAddresses = () => API.get("/addresses");
 export const addAddress = (data) => API.post("/addresses", data);
 export const deleteAddress = (id) => API.delete(`/addresses/${id}`);
 export const setDefaultAddress = (id) => API.put(`/addresses/${id}/default`);
+// ─── SELLER ───────────────────────────────────────────────────────────────────
+export const checkIsSeller      = ()       => API.get("/seller/check");
+export const registerAsSeller   = (data)   => API.post("/seller/register", data);
+export const getSellerProfile   = ()       => API.get("/seller/profile");
+export const updateSellerProfile= (data)   => API.put("/seller/profile", data);
+export const getSellerProducts  = ()       => API.get("/seller/products");
+export const addSellerProduct   = (data)   => API.post("/seller/products", data);
+export const updateSellerProduct= (id, data) => API.put(`/seller/products/${id}`, data);
+export const deleteSellerProduct= (id)     => API.delete(`/seller/products/${id}`);

@@ -796,12 +796,65 @@ const AccountPage = ({ user, onNavigate, defaultTab }) => {
     catch { flash("Failed to add address", true); }
   };
 
+  const [isSeller, setIsSeller]       = useState(false);
+  const [sellerProfile, setSellerProfile] = useState(null);
+  const [sellerProducts, setSellerProducts] = useState([]);
+  const [sellerForm, setSellerForm]   = useState({ shopName:"", businessType:"SOLE_PROPRIETOR", businessAddress:"", gstNumber:"", panNumber:"", bankAccount:"", ifscCode:"", phone:"" });
+  const [showAddProduct, setShowAddProduct] = useState(false);
+  const [editingProduct, setEditingProduct] = useState(null);
+  const [productForm, setProductForm] = useState({ name:"", description:"", price:"", stock:"", category:"", brand:"", imageUrl:"" });
+
+  useEffect(() => {
+    api.checkIsSeller().then(r => {
+      setIsSeller(r.data.isSeller);
+      if (r.data.isSeller) {
+        api.getSellerProfile().then(s => setSellerProfile(s.data));
+        api.getSellerProducts().then(s => setSellerProducts(s.data));
+      }
+    }).catch(() => {});
+  }, []);
+
+  const registerSeller = async () => {
+    try {
+      const r = await api.registerAsSeller(sellerForm);
+      setSellerProfile(r.data); setIsSeller(true); flash("🎉 Seller account activated!");
+    } catch(e) { flash(e.response?.data?.message || "Registration failed", true); }
+  };
+
+  const saveSellerProfile = async () => {
+    try { const r = await api.updateSellerProfile(sellerForm); setSellerProfile(r.data); flash("Profile updated"); }
+    catch { flash("Update failed", true); }
+  };
+
+  const submitProduct = async () => {
+    const data = { ...productForm, price: parseFloat(productForm.price), stock: parseInt(productForm.stock) };
+    try {
+      if (editingProduct) {
+        const r = await api.updateSellerProduct(editingProduct.id, data);
+        setSellerProducts(ps => ps.map(p => p.id === editingProduct.id ? r.data : p));
+        flash("Product updated");
+      } else {
+        const r = await api.addSellerProduct(data);
+        setSellerProducts(ps => [...ps, r.data]);
+        flash("Product added");
+      }
+      setShowAddProduct(false); setEditingProduct(null);
+      setProductForm({ name:"", description:"", price:"", stock:"", category:"", brand:"", imageUrl:"" });
+    } catch { flash("Failed to save product", true); }
+  };
+
+  const deleteSellerProduct = async (id) => {
+    try { await api.deleteSellerProduct(id); setSellerProducts(ps => ps.filter(p => p.id !== id)); flash("Product deleted"); }
+    catch { flash("Failed to delete", true); }
+  };
+
   const tabs = [
-    { id: "orders", label: "Your Orders", icon: "📦" },
-    { id: "security", label: "Login & Security", icon: "🔐" },
-    { id: "payment", label: "Payment Methods", icon: "💳" },
-    { id: "addresses", label: "Your Addresses", icon: "📍" },
-    { id: "contact", label: "Contact Us", icon: "📞" },
+    { id: "orders",    label: "Your Orders",       icon: "📦" },
+    { id: "security",  label: "Login & Security",   icon: "🔐" },
+    { id: "payment",   label: "Payment Methods",    icon: "💳" },
+    { id: "addresses", label: "Your Addresses",     icon: "📍" },
+    { id: "seller",    label: "Seller Hub",         icon: "🏪" },
+    { id: "contact",   label: "Contact Us",         icon: "📞" },
   ];
 
   const inputStyle = { background: T.surface2, border: `1px solid ${T.borderFaint}`, color: T.text, padding: "10px 14px", borderRadius: "2px", fontSize: "14px", outline: "none", fontFamily: SANS, width: "100%" };
@@ -906,6 +959,134 @@ const AccountPage = ({ user, onNavigate, defaultTab }) => {
                     style={{ background: "none", border: "none", color: T.red, fontSize: "12px", cursor: "pointer", marginTop: "8px", padding: 0 }}>Remove</button>
                 </div>
               ))}
+          </div>
+        )}
+
+        {tab === "seller" && (
+          <div>
+            {!isSeller ? (
+              /* ── Registration Form ── */
+              <div>
+                <div style={{ fontFamily: SERIF, fontSize: "24px", color: T.text, marginBottom: "6px" }}>Start Selling on PrimeDeals</div>
+                <div style={{ fontSize: "13px", color: T.textMuted, marginBottom: "28px" }}>Fill in your business details to activate your seller account</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", maxWidth: "600px" }}>
+                  <div style={{ gridColumn: "1/-1" }}>
+                    <label style={labelStyle}>SHOP / BUSINESS NAME *</label>
+                    <input value={sellerForm.shopName} onChange={e => setSellerForm(f=>({...f,shopName:e.target.value}))} style={inputStyle} placeholder="e.g. TechZone Retail" />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>BUSINESS TYPE *</label>
+                    <select value={sellerForm.businessType} onChange={e => setSellerForm(f=>({...f,businessType:e.target.value}))}
+                      style={{...inputStyle, cursor:"pointer"}}>
+                      {["SOLE_PROPRIETOR","PARTNERSHIP","PVT_LTD","LLP"].map(t=><option key={t} value={t}>{t.replace(/_/g," ")}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={labelStyle}>PHONE *</label>
+                    <input value={sellerForm.phone} onChange={e => setSellerForm(f=>({...f,phone:e.target.value.replace(/\D/g,"").slice(0,10)}))} style={inputStyle} placeholder="10-digit number" />
+                  </div>
+                  <div style={{ gridColumn: "1/-1" }}>
+                    <label style={labelStyle}>BUSINESS ADDRESS *</label>
+                    <input value={sellerForm.businessAddress} onChange={e => setSellerForm(f=>({...f,businessAddress:e.target.value}))} style={inputStyle} placeholder="Full business address" />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>GST NUMBER *</label>
+                    <input value={sellerForm.gstNumber} onChange={e => setSellerForm(f=>({...f,gstNumber:e.target.value.toUpperCase().slice(0,15)}))} style={inputStyle} placeholder="22AAAAA0000A1Z5" />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>PAN NUMBER *</label>
+                    <input value={sellerForm.panNumber} onChange={e => setSellerForm(f=>({...f,panNumber:e.target.value.toUpperCase().slice(0,10)}))} style={inputStyle} placeholder="ABCDE1234F" />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>BANK ACCOUNT NUMBER *</label>
+                    <input value={sellerForm.bankAccount} onChange={e => setSellerForm(f=>({...f,bankAccount:e.target.value.replace(/\D/g,"")}))} style={inputStyle} placeholder="Account number" />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>IFSC CODE *</label>
+                    <input value={sellerForm.ifscCode} onChange={e => setSellerForm(f=>({...f,ifscCode:e.target.value.toUpperCase().slice(0,11)}))} style={inputStyle} placeholder="SBIN0001234" />
+                  </div>
+                </div>
+                <div style={{ marginTop: "8px", fontSize: "12px", color: T.textFaint, maxWidth: "600px" }}>
+                  📌 GST, PAN, and Bank details are required for payouts and compliance with Indian tax laws.
+                </div>
+                <GoldBtn onClick={registerSeller} style={{ marginTop: "20px" }}>Activate Seller Account</GoldBtn>
+              </div>
+            ) : (
+              /* ── Seller Dashboard ── */
+              <div>
+                {/* Header */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "24px" }}>
+                  <div>
+                    <div style={{ fontFamily: SERIF, fontSize: "24px", color: T.text }}>{sellerProfile?.shopName}</div>
+                    <div style={{ display: "flex", gap: "10px", marginTop: "6px", flexWrap: "wrap" }}>
+                      <span style={{ background: T.goldDim, color: T.gold, border: `1px solid ${T.gold}`, borderRadius: "2px", padding: "2px 8px", fontSize: "11px" }}>🟢 {sellerProfile?.status}</span>
+                      <span style={{ color: T.textMuted, fontSize: "12px" }}>{sellerProfile?.businessType?.replace(/_/g," ")}</span>
+                    </div>
+                  </div>
+                  <GoldBtn small onClick={() => { setShowAddProduct(true); setEditingProduct(null); setProductForm({ name:"", description:"", price:"", stock:"", category:"", brand:"", imageUrl:"" }); }}>+ Add Product</GoldBtn>
+                </div>
+
+                {/* Stats */}
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px", marginBottom: "24px" }}>
+                  {[["🛍", "Products Listed", sellerProducts.length], ["📦", "GST Number", sellerProfile?.gstNumber || "—"], ["🏦", "IFSC Code", sellerProfile?.ifscCode || "—"]].map(([icon, label, val]) => (
+                    <div key={label} style={{ background: T.surface2, border: `1px solid ${T.borderFaint}`, borderRadius: "2px", padding: "16px" }}>
+                      <div style={{ fontSize: "20px", marginBottom: "6px" }}>{icon}</div>
+                      <div style={{ fontSize: "11px", color: T.gold, letterSpacing: "1px" }}>{label.toUpperCase()}</div>
+                      <div style={{ fontSize: "16px", color: T.text, marginTop: "4px", fontFamily: SERIF }}>{val}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Add / Edit Product Form */}
+                {showAddProduct && (
+                  <div style={{ background: T.surface2, border: `1px solid ${T.border}`, borderRadius: "2px", padding: "20px", marginBottom: "20px" }}>
+                    <div style={{ fontFamily: SERIF, fontSize: "18px", color: T.text, marginBottom: "16px" }}>{editingProduct ? "Edit Product" : "Add New Product"}</div>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                      {[["Product Name","name","text"],["Brand","brand","text"],["Category","category","text"],["Image URL","imageUrl","text"],["Price (₹)","price","number"],["Stock","stock","number"]].map(([label, key, type]) => (
+                        <div key={key}>
+                          <label style={labelStyle}>{label.toUpperCase()}</label>
+                          <input type={type} value={productForm[key]} onChange={e => setProductForm(f=>({...f,[key]:e.target.value}))} style={inputStyle} />
+                        </div>
+                      ))}
+                      <div style={{ gridColumn: "1/-1" }}>
+                        <label style={labelStyle}>DESCRIPTION</label>
+                        <textarea value={productForm.description} onChange={e => setProductForm(f=>({...f,description:e.target.value}))} rows={3}
+                          style={{...inputStyle, resize:"vertical"}} />
+                      </div>
+                    </div>
+                    <div style={{ display:"flex", gap:"10px", marginTop:"14px" }}>
+                      <GoldBtn small onClick={submitProduct}>{editingProduct ? "Update" : "Add Product"}</GoldBtn>
+                      <GoldBtn small outline onClick={() => { setShowAddProduct(false); setEditingProduct(null); }}>Cancel</GoldBtn>
+                    </div>
+                  </div>
+                )}
+
+                {/* Product List */}
+                <div style={{ fontSize: "10px", color: T.gold, letterSpacing: "2px", marginBottom: "12px" }}>YOUR PRODUCTS ({sellerProducts.length})</div>
+                {sellerProducts.length === 0 ? (
+                  <div style={{ textAlign:"center", padding:"40px", color:T.textMuted, fontSize:"13px" }}>No products yet. Add your first product above.</div>
+                ) : (
+                  <div style={{ display:"flex", flexDirection:"column", gap:"8px" }}>
+                    {sellerProducts.map(p => (
+                      <div key={p.id} style={{ display:"flex", alignItems:"center", gap:"14px", padding:"14px", background:T.surface2, border:`1px solid ${T.borderFaint}`, borderRadius:"2px" }}>
+                        <img src={p.imageUrl} alt={p.name} style={{ width:"56px", height:"56px", objectFit:"cover", borderRadius:"2px", background:T.surface3 }} onError={e=>e.target.style.display="none"} />
+                        <div style={{ flex:1 }}>
+                          <div style={{ fontSize:"13px", color:T.text, fontWeight:500 }}>{p.name}</div>
+                          <div style={{ fontSize:"11px", color:T.textMuted }}>{p.category} · Stock: {p.stock}</div>
+                        </div>
+                        <div style={{ fontFamily:SERIF, fontSize:"16px", color:T.gold }}>₹{p.price?.toLocaleString("en-IN")}</div>
+                        <div style={{ display:"flex", gap:"8px" }}>
+                          <button onClick={() => { setEditingProduct(p); setProductForm({name:p.name,description:p.description||"",price:p.price,stock:p.stock,category:p.category||"",brand:p.brand||"",imageUrl:p.imageUrl||""}); setShowAddProduct(true); }}
+                            style={{ background:"none", border:`1px solid ${T.border}`, color:T.gold, padding:"5px 12px", borderRadius:"2px", cursor:"pointer", fontSize:"12px" }}>Edit</button>
+                          <button onClick={() => deleteSellerProduct(p.id)}
+                            style={{ background:"none", border:`1px solid rgba(239,68,68,0.3)`, color:T.red, padding:"5px 12px", borderRadius:"2px", cursor:"pointer", fontSize:"12px" }}>Delete</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
