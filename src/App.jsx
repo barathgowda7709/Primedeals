@@ -319,7 +319,7 @@ const HomePage = ({ onNavigate, onAddToCart, onProductClick, products, cart, onR
   );
 };
 
-const ProductsPage = ({ onAddToCart, onProductClick, filterCategory, searchQuery, products, loading, cart, onRemoveFromCart }) => {
+const ProductsPage = ({ onAddToCart, onProductClick, filterCategory, searchQuery, products, loading, cart, onRemoveFromCart, onLoadMore, hasMore }) => {
   const [sortBy, setSortBy] = useState("featured");
   const [selectedCat, setSelectedCat] = useState(filterCategory || "All");
   let filtered = products;
@@ -371,6 +371,14 @@ const ProductsPage = ({ onAddToCart, onProductClick, filterCategory, searchQuery
                   <p>No products found. Try a different search or category.</p>
                 </div>
               )}
+            </div>
+          )}
+          {!searchQuery && !filterCategory && hasMore && (
+            <div style={{ textAlign: "center", padding: "24px 0" }}>
+              <button onClick={onLoadMore}
+                style={{ background: "#ff9900", border: "none", borderRadius: "4px", padding: "10px 32px", fontSize: "14px", fontWeight: 600, cursor: "pointer" }}>
+                Load More Products
+              </button>
             </div>
           )}
         </div>
@@ -962,15 +970,31 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState("");
   const [products, setProducts] = useState([]);
   const [productsLoading, setProductsLoading] = useState(true);
+  const [productsPage, setProductsPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
   const [toast, setToast] = useState(null);
   const [navParam, setNavParam] = useState(null);
 
   useEffect(() => {
-    api.getProducts()
-      .then(res => setProducts(res.data))
+    api.getProducts(0, 40)
+      .then(res => {
+        setProducts(res.data);
+        setHasMore(res.data.length === 40);
+        setProductsPage(0);
+      })
       .catch(() => console.error("Could not load products"))
       .finally(() => setProductsLoading(false));
   }, []);
+
+  const loadMoreProducts = () => {
+    const nextPage = productsPage + 1;
+    api.getProducts(nextPage, 40)
+      .then(res => {
+        setProducts(prev => [...prev, ...res.data]);
+        setHasMore(res.data.length === 40);
+        setProductsPage(nextPage);
+      });
+  };
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -1075,7 +1099,7 @@ export default function App() {
   const renderPage = () => {
     switch (page) {
       case "home": return <HomePage onNavigate={navigate} onAddToCart={addToCart} onProductClick={productClick} products={products} cart={cart} onRemoveFromCart={removeFromCart} />;
-      case "products": return <ProductsPage onAddToCart={addToCart} onProductClick={productClick} filterCategory={filterCategory} searchQuery={searchQuery} products={products} loading={productsLoading} cart={cart} onRemoveFromCart={removeFromCart} />;
+      case "products": return <ProductsPage onAddToCart={addToCart} onProductClick={productClick} filterCategory={filterCategory} searchQuery={searchQuery} products={products} loading={productsLoading} cart={cart} onRemoveFromCart={removeFromCart} onLoadMore={loadMoreProducts} hasMore={hasMore} />;
       case "product": return selectedProduct ? <ProductDetailPage product={selectedProduct} onAddToCart={addToCart} onNavigate={navigate} /> : null;
       case "cart": return <CartPage cart={cart} onRemove={removeFromCart} onUpdateQty={updateQty} onNavigate={navigate} />;
       case "checkout": return <CheckoutPage cart={cart} user={user} onNavigate={navigate} onPlaceOrder={placeOrder} />;
