@@ -1772,17 +1772,6 @@ export default function App() {
     return () => window.removeEventListener("popstate", handlePop);
   }, []); // run once on mount
 
-  // Auto-logout when token expires (403/401 from API)
-  useEffect(() => {
-    const onExpired = () => {
-      setUser(null); setCart([]);
-      showToast("Session expired — please sign in again");
-      navigate("login");
-    };
-    window.addEventListener("session-expired", onExpired);
-    return () => window.removeEventListener("session-expired", onExpired);
-  }, []);
-
   const handleLogin = data => {
     localStorage.setItem("token", data.token);
     localStorage.setItem("user", JSON.stringify({ name: data.name, email: data.email, role: data.role }));

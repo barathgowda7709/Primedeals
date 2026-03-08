@@ -10,20 +10,6 @@ API.interceptors.request.use((config) => {
   }
   return config;
 });
-// Auto-logout on 401/403 (expired or invalid token)
-API.interceptors.response.use(
-  res => res,
-  err => {
-    if (err.response?.status === 401 || err.response?.status === 403) {
-      if (localStorage.getItem("token")) {
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
-        window.dispatchEvent(new CustomEvent("session-expired"));
-      }
-    }
-    return Promise.reject(err);
-  }
-);
 // ─── AUTH ─────────────────────────────────────────────────────────────────────
 export const register = (data) => API.post("/auth/register", data);
 export const login = (data) => API.post("/auth/login", data);
