@@ -88,28 +88,26 @@ const Navbar = ({ cartCount, onNavigate, searchQuery, onSearch, user, onLogout, 
   const [suggestions, setSuggestions]     = useState([]);
   const [mobileSugg, setMobileSugg]       = useState([]);
 
-  // Debounced backend autocomplete for desktop search
+  // Dedupe by name, keep full product object (image + category intact)
+  const dedupeProducts = (data, limit) => {
+    const seen = new Set();
+    return (data || []).filter(p => { if (seen.has(p.name)) return false; seen.add(p.name); return true; }).slice(0, limit);
+  };
+
+  // Debounced backend autocomplete — full product objects for desktop
   useEffect(() => {
     if (query.trim().length < 2) { setSuggestions([]); return; }
     const t = setTimeout(() => {
-      api.searchProducts(query)
-        .then(r => setSuggestions(
-          (r.data || []).map(p => p.name).filter((v, i, a) => a.indexOf(v) === i).slice(0, 8)
-        ))
-        .catch(() => setSuggestions([]));
+      api.searchProducts(query).then(r => setSuggestions(dedupeProducts(r.data, 8))).catch(() => setSuggestions([]));
     }, 300);
     return () => clearTimeout(t);
   }, [query]);
 
-  // Debounced backend autocomplete for mobile search
+  // Debounced backend autocomplete — full product objects for mobile
   useEffect(() => {
     if (mobileQuery.trim().length < 2) { setMobileSugg([]); return; }
     const t = setTimeout(() => {
-      api.searchProducts(mobileQuery)
-        .then(r => setMobileSugg(
-          (r.data || []).map(p => p.name).filter((v, i, a) => a.indexOf(v) === i).slice(0, 6)
-        ))
-        .catch(() => setMobileSugg([]));
+      api.searchProducts(mobileQuery).then(r => setMobileSugg(dedupeProducts(r.data, 6))).catch(() => setMobileSugg([]));
     }, 300);
     return () => clearTimeout(t);
   }, [mobileQuery]);
@@ -172,12 +170,17 @@ const Navbar = ({ cartCount, onNavigate, searchQuery, onSearch, user, onLogout, 
         </div>
         {showSugg && suggestions.length > 0 && (
           <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, background: T.surface, border: `1px solid ${T.border}`, borderRadius: "2px", zIndex: 9999, overflow: "hidden" }}>
-            {suggestions.map((s, i) => (
-              <div key={i} onMouseDown={() => { setQuery(s); setShowSugg(false); onSearch(s); onNavigate("products"); }}
-                style={{ padding: "9px 14px", fontSize: "13px", cursor: "pointer", borderBottom: i < suggestions.length - 1 ? `1px solid ${T.borderFaint}` : "none" }}
+            {suggestions.map((p, i) => (
+              <div key={i} onMouseDown={() => { setQuery(p.name); setShowSugg(false); onSearch(p.name); onNavigate("products"); }}
+                style={{ padding: "8px 12px", fontSize: "13px", cursor: "pointer", borderBottom: i < suggestions.length - 1 ? `1px solid ${T.borderFaint}` : "none", display: "flex", alignItems: "center", gap: "10px" }}
                 onMouseEnter={e => e.currentTarget.style.background = T.surface2}
                 onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
-                {highlightMatch(s, query)}
+                {/* Product thumbnail */}
+                <img src={p.imageUrl} alt="" style={{ width: "36px", height: "36px", objectFit: "cover", borderRadius: "2px", flexShrink: 0, background: T.surface2 }} />
+                {/* Name with highlighted match */}
+                <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{highlightMatch(p.name, query)}</span>
+                {/* Category badge */}
+                <span style={{ fontSize: "10px", padding: "2px 7px", borderRadius: "20px", background: T.goldDim, color: T.gold, whiteSpace: "nowrap", flexShrink: 0 }}>{p.category}</span>
               </div>
             ))}
           </div>
@@ -291,13 +294,18 @@ const Navbar = ({ cartCount, onNavigate, searchQuery, onSearch, user, onLogout, 
         </form>
         {mobileSugg.length > 0 && (
           <div style={{ padding: "4px 0 8px" }}>
-            {mobileSugg.map((s, i) => (
+            {mobileSugg.map((p, i) => (
               <div key={i}
-                onMouseDown={() => { setMobileQuery(s); setMobileSugg([]); onSearch(s); onNavigate("products"); setShowMobileSearch(false); }}
-                style={{ padding: "10px 16px", fontSize: "14px", cursor: "pointer", borderBottom: i < mobileSugg.length - 1 ? `1px solid ${T.borderFaint}` : "none" }}
+                onMouseDown={() => { setMobileQuery(p.name); setMobileSugg([]); onSearch(p.name); onNavigate("products"); setShowMobileSearch(false); }}
+                style={{ padding: "8px 16px", fontSize: "14px", cursor: "pointer", borderBottom: i < mobileSugg.length - 1 ? `1px solid ${T.borderFaint}` : "none", display: "flex", alignItems: "center", gap: "10px" }}
                 onMouseEnter={e => e.currentTarget.style.background = T.surface2}
                 onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
-                {highlightMatch(s, mobileQuery)}
+                {/* Product thumbnail */}
+                <img src={p.imageUrl} alt="" style={{ width: "40px", height: "40px", objectFit: "cover", borderRadius: "2px", flexShrink: 0, background: T.surface2 }} />
+                {/* Name */}
+                <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{highlightMatch(p.name, mobileQuery)}</span>
+                {/* Category badge */}
+                <span style={{ fontSize: "10px", padding: "2px 7px", borderRadius: "20px", background: T.goldDim, color: T.gold, whiteSpace: "nowrap", flexShrink: 0 }}>{p.category}</span>
               </div>
             ))}
           </div>
