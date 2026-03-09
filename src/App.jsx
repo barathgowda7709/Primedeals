@@ -13,14 +13,14 @@ const useMobile = () => {
 
 // ── Theme ────────────────────────────────────────────────────────────────────
 const T = {
-  bg: "#0A0A0A", surface: "#111111", surface2: "#181818", surface3: "#1F1F1F",
-  gold: "#C5A059", goldLight: "#E8C97A", goldDim: "rgba(197,160,89,0.15)",
-  border: "rgba(197,160,89,0.18)", borderFaint: "rgba(255,255,255,0.06)",
-  text: "#FFFFFF", textMuted: "#A1A1AA", textFaint: "#555",
+  bg: "#111111", surface: "#1a1a1a", surface2: "#222222", surface3: "#2a2a2a",
+  gold: "#d4af37", goldLight: "#f0d060", goldDim: "rgba(212,175,55,0.12)",
+  border: "rgba(212,175,55,0.22)", borderFaint: "rgba(255,255,255,0.07)",
+  text: "#f5f5f5", textMuted: "#cfcfcf", textFaint: "#666",
   red: "#ef4444", green: "#22c55e",
 };
 
-const SERIF = "'Playfair Display', Georgia, serif";
+const SERIF = "'Prata', Georgia, serif";
 const SANS  = "'Inter', sans-serif";
 
 const CATEGORIES = [
@@ -710,13 +710,14 @@ const CartPage = ({ cart, onRemove, onUpdateQty, onNavigate }) => {
   const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
   return (
     <div style={{ background: T.bg, minHeight: "100vh", padding: mobile ? "24px 16px" : "60px" }}>
-      <h1 style={{ fontFamily: SERIF, fontSize: "32px", color: T.text, marginBottom: "8px" }}>Your Cart</h1>
-      <div style={{ fontSize: "13px", color: T.textMuted, marginBottom: "40px" }}>{cart.length} item{cart.length !== 1 ? "s" : ""}</div>
+      <div style={{ fontSize: "10px", color: T.gold, letterSpacing: "2px", marginBottom: "8px" }}>CART SUMMARY</div>
+      <h1 style={{ fontFamily: SERIF, fontSize: "36px", color: T.text, marginBottom: "6px" }}>Review your selections</h1>
+      <div style={{ fontSize: "13px", color: T.textMuted, marginBottom: "40px" }}>{cart.length} item{cart.length !== 1 ? "s" : ""} in your bag</div>
       {cart.length === 0 ? (
         <div style={{ textAlign: "center", padding: "80px 0" }}>
-          <div style={{ fontFamily: SERIF, fontSize: "24px", color: T.text, marginBottom: "12px" }}>Your cart is empty</div>
-          <div style={{ color: T.textMuted, marginBottom: "28px" }}>Discover our curated collections</div>
-          <GoldBtn onClick={() => onNavigate("products")}>Start Shopping</GoldBtn>
+          <div style={{ fontFamily: SERIF, fontSize: "28px", color: T.text, marginBottom: "12px" }}>Nothing here yet</div>
+          <div style={{ color: T.textMuted, marginBottom: "28px", fontSize: "14px" }}>Explore our curated collections and add something you love</div>
+          <GoldBtn onClick={() => onNavigate("products")}>Continue Shopping</GoldBtn>
         </div>
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: "40px" }}>
@@ -747,14 +748,18 @@ const CartPage = ({ cart, onRemove, onUpdateQty, onNavigate }) => {
               <span>Subtotal</span><span style={{ color: T.text }}>₹{total.toLocaleString("en-IN")}</span>
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "10px", fontSize: "13px", color: T.textMuted }}>
-              <span>Delivery</span><span style={{ color: T.green }}>Free</span>
+              <span>Shipping</span><span style={{ color: T.green }}>Free</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "10px", fontSize: "13px", color: T.textMuted }}>
+              <span>Taxes</span><span style={{ color: T.text }}>Included</span>
             </div>
             <Divider style={{ margin: "16px 0" }} />
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "24px" }}>
-              <span style={{ fontFamily: SERIF, fontSize: "18px", color: T.text }}>Total</span>
+              <span style={{ fontFamily: SERIF, fontSize: "16px", color: T.text }}>Total Payable</span>
               <span style={{ fontFamily: SERIF, fontSize: "22px", color: T.gold }}>₹{total.toLocaleString("en-IN")}</span>
             </div>
-            <GoldBtn onClick={() => onNavigate("checkout")} style={{ width: "100%", textAlign: "center" }}>Proceed to Checkout</GoldBtn>
+            <GoldBtn onClick={() => onNavigate("checkout")} style={{ width: "100%", textAlign: "center" }}>Proceed to checkout</GoldBtn>
+            <div onClick={() => onNavigate("products")} style={{ textAlign: "center", marginTop: "12px", fontSize: "12px", color: T.textMuted, cursor: "pointer", textDecoration: "underline" }}>Continue shopping</div>
           </div>
         </div>
       )}
@@ -840,13 +845,17 @@ const CheckoutPage = ({ cart, user, onNavigate, onPlaceOrder }) => {
 
   return (
     <div style={{ background: T.bg, minHeight: "100vh", padding: mobile ? "24px 16px" : "60px" }}>
-      <h1 style={{ fontFamily: SERIF, fontSize: "32px", color: T.text, marginBottom: "8px" }}>Checkout</h1>
-      <div style={{ display: "flex", gap: "8px", marginBottom: "40px" }}>
-        {["Delivery","Payment","Review"].map((s, i) => (
+      <div style={{ fontSize: "10px", color: T.gold, letterSpacing: "2px", marginBottom: "8px" }}>SECURE CHECKOUT</div>
+      <h1 style={{ fontFamily: SERIF, fontSize: "36px", color: T.text, marginBottom: "32px" }}>Complete your order</h1>
+      <div style={{ display: "flex", gap: "6px", marginBottom: "40px", flexWrap: "wrap" }}>
+        {[["Shipping","Select address and delivery speed"],["Payment","Choose method and confirm securely"],["Confirmation","Receipt, tracking, and updates"]].map(([s, sub], i) => (
           <div key={s} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <div style={{ width: "24px", height: "24px", borderRadius: "50%", background: step > i ? T.gold : step === i + 1 ? T.gold : T.surface2, color: step > i ? "#0A0A0A" : step === i + 1 ? "#0A0A0A" : T.textFaint, fontSize: "11px", fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{i + 1}</div>
-            <span style={{ fontSize: "12px", color: step === i + 1 ? T.gold : T.textMuted }}>{s}</span>
-            {i < 2 && <span style={{ color: T.borderFaint }}>—</span>}
+            <div style={{ width: "26px", height: "26px", borderRadius: "50%", background: step > i ? T.gold : step === i + 1 ? T.gold : T.surface2, color: step > i ? "#111" : step === i + 1 ? "#111" : T.textFaint, fontSize: "11px", fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{step > i ? "✓" : i + 1}</div>
+            <div>
+              <div style={{ fontSize: "12px", color: step === i + 1 ? T.gold : T.textMuted, fontWeight: 500 }}>{s}</div>
+              {step === i + 1 && <div style={{ fontSize: "10px", color: T.textFaint }}>{sub}</div>}
+            </div>
+            {i < 2 && <span style={{ color: T.borderFaint, margin: "0 4px" }}>——</span>}
           </div>
         ))}
       </div>
@@ -855,7 +864,8 @@ const CheckoutPage = ({ cart, user, onNavigate, onPlaceOrder }) => {
         <div style={{ background: T.surface, padding: "32px", borderRadius: "2px" }}>
           {step === 1 && (
             <>
-              <div style={{ fontFamily: SERIF, fontSize: "20px", color: T.text, marginBottom: "24px" }}>Delivery Address</div>
+              <div style={{ fontSize: "10px", color: T.gold, letterSpacing: "1.5px", marginBottom: "6px" }}>STEP 1 OF 3</div>
+              <div style={{ fontFamily: SERIF, fontSize: "22px", color: T.text, marginBottom: "24px" }}>Select address & delivery</div>
               {error && <div style={{ color: T.red, marginBottom: "16px", fontSize: "13px" }}>{error}</div>}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
                 {[["Full Name","name","text"],["Phone","phone","tel"],["Street Address","street","text"],["City","city","text"],["State","state","text"],["PIN Code","pin","text"]].map(([label, key, type]) => (
@@ -870,7 +880,8 @@ const CheckoutPage = ({ cart, user, onNavigate, onPlaceOrder }) => {
           )}
           {step === 2 && (
             <>
-              <div style={{ fontFamily: SERIF, fontSize: "20px", color: T.text, marginBottom: "24px" }}>Payment Method</div>
+              <div style={{ fontSize: "10px", color: T.gold, letterSpacing: "1.5px", marginBottom: "6px" }}>STEP 2 OF 3</div>
+              <div style={{ fontFamily: SERIF, fontSize: "22px", color: T.text, marginBottom: "24px" }}>Choose payment method</div>
               {["cod","upi","card"].map(method => (
                 <div key={method} onClick={() => setPayment(method)}
                   style={{ display: "flex", alignItems: "center", gap: "14px", padding: "16px", marginBottom: "8px", background: payment === method ? T.goldDim : T.surface2, border: `1px solid ${payment === method ? T.gold : T.borderFaint}`, borderRadius: "2px", cursor: "pointer" }}>
@@ -888,7 +899,8 @@ const CheckoutPage = ({ cart, user, onNavigate, onPlaceOrder }) => {
           )}
           {step === 3 && (
             <>
-              <div style={{ fontFamily: SERIF, fontSize: "20px", color: T.text, marginBottom: "24px" }}>Review Order</div>
+              <div style={{ fontSize: "10px", color: T.gold, letterSpacing: "1.5px", marginBottom: "6px" }}>STEP 3 OF 3</div>
+              <div style={{ fontFamily: SERIF, fontSize: "22px", color: T.text, marginBottom: "24px" }}>Review & confirm</div>
               <div style={{ background: T.surface2, padding: "16px", borderRadius: "2px", marginBottom: "16px" }}>
                 <div style={{ fontSize: "10px", color: T.gold, letterSpacing: "1px", marginBottom: "8px" }}>DELIVERY TO</div>
                 <div style={{ fontSize: "13px", color: T.text }}>{address.name}, {address.phone}</div>
@@ -909,7 +921,7 @@ const CheckoutPage = ({ cart, user, onNavigate, onPlaceOrder }) => {
 
         {/* Order Summary */}
         <div style={{ background: T.surface, padding: "24px", borderRadius: "2px", border: `1px solid ${T.border}`, height: "fit-content" }}>
-          <div style={{ fontSize: "10px", color: T.gold, letterSpacing: "2px", marginBottom: "16px" }}>ORDER SUMMARY</div>
+          <div style={{ fontSize: "10px", color: T.gold, letterSpacing: "2px", marginBottom: "16px" }}>YOUR ORDER</div>
           {cart.map(item => (
             <div key={item.cartItemId || item.id} style={{ display: "flex", justifyContent: "space-between", marginBottom: "10px" }}>
               <div style={{ fontSize: "12px", color: T.textMuted, flex: 1, marginRight: "8px" }}>{item.name} ×{item.qty}</div>
@@ -917,8 +929,12 @@ const CheckoutPage = ({ cart, user, onNavigate, onPlaceOrder }) => {
             </div>
           ))}
           <Divider style={{ margin: "14px 0" }} />
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
+            <span style={{ fontSize: "12px", color: T.textMuted }}>Shipping</span>
+            <span style={{ fontSize: "12px", color: T.green }}>Free</span>
+          </div>
           <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <span style={{ fontFamily: SERIF, fontSize: "16px", color: T.text }}>Total</span>
+            <span style={{ fontFamily: SERIF, fontSize: "15px", color: T.text }}>Total Payable</span>
             <span style={{ fontFamily: SERIF, fontSize: "20px", color: T.gold }}>₹{total.toLocaleString("en-IN")}</span>
           </div>
         </div>
@@ -939,14 +955,15 @@ const OrdersPage = ({ user, onNavigate }) => {
 
   return (
     <div style={{ background: T.bg, minHeight: "100vh", padding: mobile ? "24px 16px" : "60px" }}>
-      <h1 style={{ fontFamily: SERIF, fontSize: "32px", color: T.text, marginBottom: "8px" }}>Your Orders</h1>
-      <div style={{ fontSize: "13px", color: T.textMuted, marginBottom: "40px" }}>{orders.length} order{orders.length !== 1 ? "s" : ""}</div>
-      {loading ? <div style={{ color: T.textMuted }}>Loading...</div>
+      <div style={{ fontSize: "10px", color: T.gold, letterSpacing: "2px", marginBottom: "8px" }}>YOUR ACCOUNT</div>
+      <h1 style={{ fontFamily: SERIF, fontSize: "36px", color: T.text, marginBottom: "6px" }}>Orders & Returns</h1>
+      <div style={{ fontSize: "13px", color: T.textMuted, marginBottom: "40px" }}>{orders.length} order{orders.length !== 1 ? "s" : ""} placed</div>
+      {loading ? <div style={{ color: T.textMuted, fontFamily: SANS, letterSpacing: "1px" }}>Loading your orders…</div>
         : orders.length === 0 ? (
           <div style={{ textAlign: "center", padding: "80px 0" }}>
-            <div style={{ fontFamily: SERIF, fontSize: "24px", color: T.text, marginBottom: "12px" }}>No orders yet</div>
-            <div style={{ color: T.textMuted, marginBottom: "28px" }}>Start shopping to see your orders here</div>
-            <GoldBtn onClick={() => onNavigate("products")}>Browse Products</GoldBtn>
+            <div style={{ fontFamily: SERIF, fontSize: "28px", color: T.text, marginBottom: "12px" }}>Nothing to show</div>
+            <div style={{ color: T.textMuted, marginBottom: "28px", fontSize: "14px" }}>Place your first order and it will appear here</div>
+            <GoldBtn onClick={() => onNavigate("products")}>Explore Products</GoldBtn>
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
@@ -1095,12 +1112,12 @@ const AccountPage = ({ user, onNavigate, defaultTab }) => {
   };
 
   const tabs = [
-    { id: "orders",    label: "Your Orders",       icon: "📦" },
+    { id: "orders",    label: "Orders & Returns",   icon: "📦" },
     { id: "security",  label: "Login & Security",   icon: "🔐" },
     { id: "payment",   label: "Payment Methods",    icon: "💳" },
-    { id: "addresses", label: "Your Addresses",     icon: "📍" },
+    { id: "addresses", label: "Address Book",       icon: "📍" },
     { id: "seller",    label: "Seller Hub",         icon: "🏪" },
-    { id: "contact",   label: "Contact Us",         icon: "📞" },
+    { id: "contact",   label: "Help & Support",     icon: "📞" },
   ];
 
   const inputStyle = { background: T.surface2, border: `1px solid ${T.borderFaint}`, color: T.text, padding: "10px 14px", borderRadius: "2px", fontSize: "14px", outline: "none", fontFamily: SANS, width: "100%" };
@@ -1110,8 +1127,15 @@ const AccountPage = ({ user, onNavigate, defaultTab }) => {
     <div style={{ background: T.bg, minHeight: "100vh", padding: mobile ? "20px 16px" : "60px", display: "flex", flexDirection: mobile ? "column" : "row", gap: mobile ? "16px" : "40px" }}>
       {/* Sidebar */}
       <div style={{ width: mobile ? "100%" : "220px", flexShrink: 0 }}>
-        <div style={{ fontFamily: SERIF, fontSize: "20px", color: T.text, marginBottom: "4px" }}>{user?.name}</div>
-        <div style={{ fontSize: "12px", color: T.textMuted, marginBottom: "28px" }}>{user?.email}</div>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "24px" }}>
+          <div style={{ width: "44px", height: "44px", borderRadius: "50%", background: T.goldDim, border: `1px solid ${T.gold}`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: SERIF, fontSize: "18px", color: T.gold, flexShrink: 0 }}>
+            {user?.name?.[0]?.toUpperCase() || "U"}
+          </div>
+          <div>
+            <div style={{ fontFamily: SERIF, fontSize: "17px", color: T.text, lineHeight: 1.2 }}>{user?.name}</div>
+            <div style={{ fontSize: "11px", color: T.textFaint, marginTop: "2px" }}>Member since {new Date().getFullYear()}</div>
+          </div>
+        </div>
         <div style={{ display: mobile ? "flex" : "block", overflowX: mobile ? "auto" : "visible", gap: "8px" }}>
         {tabs.map(t => (
           <div key={t.id} onClick={() => setTab(t.id)}
@@ -1132,14 +1156,18 @@ const AccountPage = ({ user, onNavigate, defaultTab }) => {
 
         {tab === "orders" && (
           <div>
-            <div style={{ fontFamily: SERIF, fontSize: "24px", color: T.text, marginBottom: "20px" }}>Your Orders</div>
+            <div style={{ fontSize: "10px", color: T.gold, letterSpacing: "2px", marginBottom: "6px" }}>YOUR ACCOUNT</div>
+            <div style={{ fontFamily: SERIF, fontSize: "26px", color: T.text, marginBottom: "8px" }}>Orders & Returns</div>
+            <div style={{ fontSize: "13px", color: T.textMuted, marginBottom: "24px" }}>Track, manage and return your purchases</div>
             <GoldBtn onClick={() => onNavigate("orders")}>View All Orders →</GoldBtn>
           </div>
         )}
 
         {tab === "security" && (
           <div>
-            <div style={{ fontFamily: SERIF, fontSize: "24px", color: T.text, marginBottom: "24px" }}>Login & Security</div>
+            <div style={{ fontSize: "10px", color: T.gold, letterSpacing: "2px", marginBottom: "6px" }}>YOUR ACCOUNT</div>
+            <div style={{ fontFamily: SERIF, fontSize: "26px", color: T.text, marginBottom: "6px" }}>Login & Security</div>
+            <div style={{ fontSize: "13px", color: T.textMuted, marginBottom: "28px" }}>Manage your credentials and account access</div>
             <div style={{ display: "flex", flexDirection: "column", gap: "16px", maxWidth: "400px" }}>
               <div><label style={labelStyle}>FULL NAME</label><input value={profile.name} onChange={e => setProfile(p => ({ ...p, name: e.target.value }))} style={inputStyle} /></div>
               <div>
@@ -1151,7 +1179,7 @@ const AccountPage = ({ user, onNavigate, defaultTab }) => {
               </div>
               <GoldBtn onClick={saveProfile}>Save Profile</GoldBtn>
               <Divider style={{ margin: "8px 0" }} />
-              <div style={{ fontFamily: SERIF, fontSize: "18px", color: T.text, marginBottom: "8px" }}>Change Password</div>
+              <div style={{ fontFamily: SERIF, fontSize: "18px", color: T.text, marginBottom: "8px" }}>Update Password</div>
               <div><label style={labelStyle}>CURRENT PASSWORD</label><input type="password" value={passwords.current} onChange={e => setPasswords(p => ({ ...p, current: e.target.value }))} style={inputStyle} /></div>
               <div><label style={labelStyle}>NEW PASSWORD</label><input type="password" value={passwords.newPass} onChange={e => setPasswords(p => ({ ...p, newPass: e.target.value }))} style={inputStyle} /></div>
               <div><label style={labelStyle}>CONFIRM PASSWORD</label><input type="password" value={passwords.confirm} onChange={e => setPasswords(p => ({ ...p, confirm: e.target.value }))} style={inputStyle} /></div>
@@ -1162,7 +1190,9 @@ const AccountPage = ({ user, onNavigate, defaultTab }) => {
 
         {tab === "payment" && (
           <div>
-            <div style={{ fontFamily: SERIF, fontSize: "24px", color: T.text, marginBottom: "24px" }}>Payment Methods</div>
+            <div style={{ fontSize: "10px", color: T.gold, letterSpacing: "2px", marginBottom: "6px" }}>YOUR ACCOUNT</div>
+            <div style={{ fontFamily: SERIF, fontSize: "26px", color: T.text, marginBottom: "6px" }}>Payment Methods</div>
+            <div style={{ fontSize: "13px", color: T.textMuted, marginBottom: "28px" }}>Your saved cards and wallets</div>
             {[{icon:"🏦",title:"Amazon Pay Wallet",sub:"Balance: ₹0.00"},{icon:"💳",title:"Debit Card ending 4242",sub:"Expires 12/26"},{icon:"💳",title:"Credit Card ending 1234",sub:"Expires 08/25"}].map(m => (
               <div key={m.title} style={{ display: "flex", alignItems: "center", gap: "16px", padding: "16px", background: T.surface2, border: `1px solid ${T.borderFaint}`, borderRadius: "2px", marginBottom: "10px" }}>
                 <span style={{ fontSize: "24px" }}>{m.icon}</span>
@@ -1177,12 +1207,17 @@ const AccountPage = ({ user, onNavigate, defaultTab }) => {
 
         {tab === "addresses" && (
           <div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
-              <div style={{ fontFamily: SERIF, fontSize: "24px", color: T.text }}>Your Addresses</div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "24px" }}>
+              <div>
+                <div style={{ fontSize: "10px", color: T.gold, letterSpacing: "2px", marginBottom: "6px" }}>CONTACT & ADDRESS</div>
+                <div style={{ fontFamily: SERIF, fontSize: "26px", color: T.text, marginBottom: "4px" }}>Address Book</div>
+                <div style={{ fontSize: "13px", color: T.textMuted }}>Manage your delivery addresses</div>
+              </div>
               <GoldBtn small outline onClick={() => setShowAddrForm(v => !v)}>+ Add Address</GoldBtn>
             </div>
             {showAddrForm && (
               <div style={{ background: T.surface2, border: `1px solid ${T.border}`, padding: "24px", borderRadius: "2px", marginBottom: "20px" }}>
+                <div style={{ fontSize: "10px", color: T.gold, letterSpacing: "1.5px", marginBottom: "16px" }}>NEW ADDRESS</div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                   {[["Full Name","fullName","text"],["Phone","phone","tel"],["Street","street","text"],["City","city","text"],["State","state","text"],["PIN","pinCode","text"]].map(([label, key, type]) => (
                     <div key={key} style={{ gridColumn: key === "street" ? "1/-1" : "auto" }}>
@@ -1197,14 +1232,22 @@ const AccountPage = ({ user, onNavigate, defaultTab }) => {
                 </div>
               </div>
             )}
-            {addresses.length === 0 ? <div style={{ color: T.textMuted, fontSize: "13px" }}>No addresses saved yet.</div>
+            {addresses.length === 0 ? <div style={{ color: T.textMuted, fontSize: "13px", padding: "24px 0" }}>No addresses saved yet. Add one to speed up checkout.</div>
               : addresses.map(a => (
-                <div key={a.id} style={{ padding: "16px", background: T.surface2, border: `1px solid ${T.borderFaint}`, borderRadius: "2px", marginBottom: "10px" }}>
-                  <div style={{ fontSize: "14px", color: T.text, marginBottom: "4px" }}>{a.fullName}</div>
-                  <div style={{ fontSize: "12px", color: T.textMuted }}>{a.street}, {a.city}, {a.state} - {a.pinCode}</div>
-                  <div style={{ fontSize: "12px", color: T.textMuted }}>{a.phone}</div>
-                  <button onClick={() => api.deleteAddress(a.id).then(() => setAddresses(ads => ads.filter(x => x.id !== a.id)))}
-                    style={{ background: "none", border: "none", color: T.red, fontSize: "12px", cursor: "pointer", marginTop: "8px", padding: 0 }}>Remove</button>
+                <div key={a.id} style={{ padding: "16px 20px", background: T.surface2, border: `1px solid ${a.isDefault ? T.gold : T.borderFaint}`, borderRadius: "2px", marginBottom: "10px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                    <div>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
+                        <div style={{ fontFamily: SERIF, fontSize: "15px", color: T.text }}>{a.fullName}</div>
+                        {a.isDefault && <span style={{ fontSize: "9px", color: T.gold, border: `1px solid ${T.gold}`, borderRadius: "2px", padding: "1px 5px", letterSpacing: "0.5px" }}>DEFAULT</span>}
+                      </div>
+                      <div style={{ fontSize: "12px", color: T.textMuted, lineHeight: 1.6 }}>{a.street}, {a.city}, {a.state}</div>
+                      <div style={{ fontSize: "12px", color: T.gold, letterSpacing: "1px" }}>Pincode: {a.pinCode}</div>
+                      <div style={{ fontSize: "12px", color: T.textMuted, marginTop: "2px" }}>{a.phone}</div>
+                    </div>
+                    <button onClick={() => api.deleteAddress(a.id).then(() => setAddresses(ads => ads.filter(x => x.id !== a.id)))}
+                      style={{ background: "none", border: `1px solid rgba(239,68,68,0.3)`, color: T.red, fontSize: "11px", cursor: "pointer", padding: "4px 10px", borderRadius: "2px" }}>Remove</button>
+                  </div>
                 </div>
               ))}
           </div>
@@ -1215,8 +1258,9 @@ const AccountPage = ({ user, onNavigate, defaultTab }) => {
             {!isSeller ? (
               /* ── Registration Form ── */
               <div>
-                <div style={{ fontFamily: SERIF, fontSize: "24px", color: T.text, marginBottom: "6px" }}>Start Selling on PrimeDeals</div>
-                <div style={{ fontSize: "13px", color: T.textMuted, marginBottom: "28px" }}>Fill in your business details to activate your seller account</div>
+                <div style={{ fontSize: "10px", color: T.gold, letterSpacing: "2px", marginBottom: "6px" }}>SELLER PROGRAMME</div>
+                <div style={{ fontFamily: SERIF, fontSize: "26px", color: T.text, marginBottom: "6px" }}>Start selling on PrimeDeals</div>
+                <div style={{ fontSize: "13px", color: T.textMuted, marginBottom: "28px" }}>Fill in your business details to activate your seller account and reach millions of buyers</div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", maxWidth: "600px" }}>
                   <div style={{ gridColumn: "1/-1" }}>
                     <label style={labelStyle}>SHOP / BUSINESS NAME *</label>
@@ -1395,7 +1439,9 @@ const AccountPage = ({ user, onNavigate, defaultTab }) => {
 
         {tab === "contact" && (
           <div>
-            <div style={{ fontFamily: SERIF, fontSize: "24px", color: T.text, marginBottom: "24px" }}>Contact Us</div>
+            <div style={{ fontSize: "10px", color: T.gold, letterSpacing: "2px", marginBottom: "6px" }}>WE'RE HERE FOR YOU</div>
+            <div style={{ fontFamily: SERIF, fontSize: "26px", color: T.text, marginBottom: "6px" }}>Help & Support</div>
+            <div style={{ fontSize: "13px", color: T.textMuted, marginBottom: "28px" }}>Reach out — we're available across multiple channels</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "32px" }}>
               {[{icon:"📞",title:"Customer Care",detail:"1800-123-4567",sub:"Mon–Sat, 9AM–9PM IST"},{icon:"📧",title:"Email Support",detail:"support@primedeals.in",sub:"Reply within 24 hours"},{icon:"💬",title:"Live Chat",detail:"Available Now",sub:"Avg wait: 2 mins"},{icon:"🏢",title:"Head Office",detail:"Bangalore, Karnataka",sub:"India 560001"}].map(c => (
                 <div key={c.title} style={{ padding: "20px", background: T.surface2, border: `1px solid ${T.borderFaint}`, borderRadius: "2px" }}>
