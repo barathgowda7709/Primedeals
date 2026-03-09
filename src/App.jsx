@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import * as api from "./api";
+import Lenis from "lenis";
 
 const useMobile = () => {
   const [m, setM] = useState(window.innerWidth < 768);
@@ -1750,6 +1751,24 @@ const AdminPage = ({ onNavigate }) => {
 
 // ── App ───────────────────────────────────────────────────────────────────────
 export default function App() {
+  // ── Lenis ultra-smooth scroll ─────────────────────────────────────────────
+  useEffect(() => {
+    const lenis = new Lenis({
+      duration: 1.4,
+      easing: t => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+      smoothWheel: true,
+      wheelMultiplier: 0.9,
+      touchMultiplier: 1.5,
+      infinite: false,
+    });
+    function raf(time) {
+      lenis.raf(time);
+      requestAnimationFrame(raf);
+    }
+    requestAnimationFrame(raf);
+    return () => lenis.destroy();
+  }, []);
+
   const [page, setPage]                   = useState("home");
   const [cart, setCart]                   = useState([]);
   const [user, setUser]                   = useState(null);
